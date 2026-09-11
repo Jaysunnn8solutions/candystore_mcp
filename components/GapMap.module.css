@@ -1,0 +1,26 @@
+.map {
+  width: 100%;
+  height: 100%;
+  background: var(--page);
+}
+
+.tooltip {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 8px 10px;
+}
+
+.tooltip :global(.leaflet-tooltip-tip) {
+  display: none;
+}
+
+.tooltipMuted {
+  color: var(--muted);
+  font-size: 11px;
+}

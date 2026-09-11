@@ -1,0 +1,58 @@
+.app {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  height: 100dvh;
+  width: 100%;
+}
+
+.mapPane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mapLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+}
+
+.error {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(90%, 520px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #d03b3b;
+  color: #fff;
+  font-size: 13px;
+}
+
+.error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 55dvh 45dvh;
+    height: auto;
+  }
+
+  .mapPane {
+    order: -1;
+  }
+}

@@ -1,0 +1,37 @@
+name: Refresh data
+
+# Re-runs the offline pipeline and opens a pull request with the new
+# committed outputs. Manual by default; the schedule is a yearly nudge for
+# when a new ACS vintage lands (December).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 15 1 *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pipeline
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+      - run: npm test
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: data-refresh
+          title: "Refresh pipeline data"
+          commit-message: "Refresh pipeline data"
+          body: |
+            Automated re-run of `npm run pipeline`. Review `data/manifest.json`
+            for counts and vintages before merging.
+          add-paths: data/

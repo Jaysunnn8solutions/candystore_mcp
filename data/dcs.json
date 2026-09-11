@@ -1,0 +1,34 @@
+[
+  {
+    "id": "dc-west",
+    "name": "Fulton Industrial DC",
+    "lon": -84.5500,
+    "lat": 33.7800,
+    "capacity": {
+      "traditional": 320000,
+      "specialty:latam": 9000,
+      "specialty:caribbean": 3000,
+      "specialty:eastasia": 6000,
+      "specialty:southasia": 4000,
+      "specialty:mideast": 2500,
+      "specialty:africa": 3000,
+      "specialty:easteurope": 2000
+    }
+  },
+  {
+    "id": "dc-east",
+    "name": "Norcross DC",
+    "lon": -84.2000,
+    "lat": 33.9400,
+    "capacity": {
+      "traditional": 320000,
+      "specialty:latam": 16000,
+      "specialty:caribbean": 4000,
+      "specialty:eastasia": 18000,
+      "specialty:southasia": 12000,
+      "specialty:mideast": 5000,
+      "specialty:africa": 5000,
+      "specialty:easteurope": 3000
+    }
+  }
+]

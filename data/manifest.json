@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-09-11T02:34:40.849Z",
+  "acsVintage": 2024,
+  "acsPriorVintage": 2019,
+  "boundaryVintage": 2024,
+  "counties": [
+    {
+      "fips": "057",
+      "name": "Cherokee"
+    },
+    {
+      "fips": "063",
+      "name": "Clayton"
+    },
+    {
+      "fips": "067",
+      "name": "Cobb"
+    },
+    {
+      "fips": "089",
+      "name": "DeKalb"
+    },
+    {
+      "fips": "097",
+      "name": "Douglas"
+    },
+    {
+      "fips": "113",
+      "name": "Fayette"
+    },
+    {
+      "fips": "121",
+      "name": "Fulton"
+    },
+    {
+      "fips": "135",
+      "name": "Gwinnett"
+    },
+    {
+      "fips": "151",
+      "name": "Henry"
+    },
+    {
+      "fips": "247",
+      "name": "Rockdale"
+    }
+  ],
+  "segments": [
+    {
+      "id": "latam",
+      "label": "Latin American"
+    },
+    {
+      "id": "caribbean",
+      "label": "Caribbean"
+    },
+    {
+      "id": "eastasia",
+      "label": "East and Southeast Asian"
+    },
+    {
+      "id": "southasia",
+      "label": "South Asian"
+    },
+    {
+      "id": "mideast",
+      "label": "Middle Eastern and North African"
+    },
+    {
+      "id": "africa",
+      "label": "Sub-Saharan African"
+    },
+    {
+      "id": "easteurope",
+      "label": "Eastern European"
+    }
+  ],
+  "counts": {
+    "tracts": 1200,
+    "competitors": 20
+  }
+}

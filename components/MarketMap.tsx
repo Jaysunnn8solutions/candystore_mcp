@@ -1,0 +1,225 @@
+"use client";
+
+import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import type { Layer, PathOptions } from "leaflet";
+import type { Feature } from "geojson";
+import "leaflet/dist/leaflet.css";
+import type { TractCollection } from "@/lib/data/load";
+import type { Competitor, DistributionCenter, MarketResult, Store, StoreType, TractProps } from "@/lib/model/types";
+import {
+  BLUE,
+  COMPETITOR_COLOR,
+  DC_COLOR,
+  GREEN,
+  NEUTRAL,
+  NO_DATA,
+  ORANGE,
+  STORE_SLOTS,
+  STORE_TYPE_COLORS,
+  fmtNum,
+  money,
+  pct,
+  quintiles,
+  ramp,
+  shareColor,
+  type Mode,
+} from "./scales";
+import styles from "./GapMap.module.css";
+
+export interface MapPoint {
+  lon: number;
+  lat: number;
+  label: string;
+}
+
+interface Props {
+  tracts: TractCollection;
+  result: MarketResult | null;
+  version: number;
+  mode: Mode;
+  segment: string;
+  segmentLabels: Record<string, string>;
+  stores: Store[];
+  dcs: DistributionCenter[];
+  competitors: Competitor[];
+  showCompetitors: boolean;
+  placing: StoreType | null;
+  searchMarker: MapPoint | null;
+  flyTo: MapPoint | null;
+  selected: string | null;
+  onSelect: (geoid: string | null) => void;
+  onPlace: (lon: number, lat: number) => void;
+  onRemoveStore: (id: string) => void;
+}
+
+const CENTER: [number, number] = [33.85, -84.35];
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
+const TILES = {
+  light: `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+  dark: `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+  labelsLight: `${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+  labelsDark: `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+};
+const ATTRIBUTION = "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function subscribeDark(onChange: () => void) {
+  const mq = window.matchMedia(DARK_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+function useDarkMode() {
+  return useSyncExternalStore(subscribeDark, () => window.matchMedia(DARK_QUERY).matches, () => false);
+}
+
+function MapEvents({ placing, onPlace }: { placing: StoreType | null; onPlace: (lon: number, lat: number) => void }) {
+  const map = useMapEvents({
+    click(e) {
+      if (placing) onPlace(e.latlng.lng, e.latlng.lat);
+    },
+  });
+  useEffect(() => {
+    const el = map.getContainer();
+    el.style.cursor = placing ? "crosshair" : "";
+    return () => {
+      el.style.cursor = "";
+    };
+  }, [map, placing]);
+  return null;
+}
+
+function FlyTo({ target }: { target: MapPoint | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lon], Math.max(map.getZoom(), 12), { duration: 0.8 });
+  }, [map, target]);
+  return null;
+}
+
+export default function MarketMap(props: Props) {
+  const { tracts, result, version, mode, segment, segmentLabels, stores, dcs, competitors, showCompetitors, placing, searchMarker, flyTo, selected, onSelect, onPlace, onRemoveStore } = props;
+  const dark = useDarkMode();
+
+  const byGeoid = useMemo(() => new Map(result?.tracts.map((t) => [t.geoid, t]) ?? []), [result]);
+  const storeSlot = useMemo(() => new Map(stores.map((s, i) => [s.id, STORE_SLOTS[i % STORE_SLOTS.length]])), [stores]);
+  const breaks = useMemo(() => {
+    const all = result?.tracts ?? [];
+    const cat = `specialty:${segment}`;
+    return {
+      demand: quintiles(all.map((t) => t.total)),
+      specialty: quintiles(all.map((t) => t.byCategory[cat] ?? 0)),
+      uncaptured: quintiles(all.map((t) => uncaptured(t))),
+    };
+  }, [result, segment]);
+
+  const layerKey = `${mode}-${segment}-${version}-${selected ?? ""}-${stores.length}`;
+
+  const style = useMemo(
+    () =>
+      (feature?: Feature): PathOptions => {
+        const p = feature?.properties as TractProps;
+        const t = byGeoid.get(p.geoid);
+        let fill = NO_DATA;
+        if (t && p.pop > 0) {
+          if (mode === "demand") fill = ramp(t.total, breaks.demand, BLUE);
+          else if (mode === "specialty") {
+            const v = t.byCategory[`specialty:${segment}`] ?? 0;
+            fill = v > 0 ? ramp(v, breaks.specialty, ORANGE) : NEUTRAL;
+          } else if (mode === "share") fill = shareColor(ourShare(t));
+          else if (mode === "uncaptured") fill = ramp(uncaptured(t), breaks.uncaptured, BLUE);
+          else fill = t.primaryStore ? (storeSlot.get(t.primaryStore) ?? NEUTRAL) : NEUTRAL;
+        }
+        const isSelected = selected === p.geoid;
+        return { fillColor: fill, fillOpacity: mode === "primary" ? 0.55 : 0.78, color: isSelected ? "#0b0b0b" : dark ? "#2c2c2a" : "#ffffff", weight: isSelected ? 3 : 0.5, opacity: 1 };
+      },
+    [byGeoid, mode, segment, breaks, selected, dark, storeSlot]
+  );
+
+  const onEachFeature = (feature: Feature, layer: Layer) => {
+    const p = feature.properties as TractProps;
+    const t = byGeoid.get(p.geoid);
+    const specialty = t
+      ? Object.entries(t.byCategory)
+          .filter(([c]) => c !== "traditional")
+          .map(([c, v]) => `${segmentLabels[c.replace("specialty:", "")] ?? c} ${money(v)}`)
+          .join(", ")
+      : "";
+    layer.bindTooltip(
+      `<strong>${p.name}</strong><br/>${p.place} · ${fmtNum(p.pop)} residents` +
+        (t ? `<br/>demand ${money(t.total)}/yr · we capture ${pct(ourShare(t))}` : "") +
+        (specialty ? `<br/>specialty: ${specialty}` : "") +
+        (t?.primaryStore ? `<br/>shops at ${stores.find((s) => s.id === t.primaryStore)?.name ?? t.primaryStore}` : ""),
+      { sticky: true, className: styles.tooltip, direction: "top", offset: [0, -8] }
+    );
+    layer.on({
+      click: () => {
+        if (placing) return;
+        onSelect(selected === p.geoid ? null : p.geoid);
+      },
+    });
+  };
+
+  const ink = dark ? "#ffffff" : "#0b0b0b";
+  const stroke = dark ? "#1a1a19" : "#ffffff";
+
+  return (
+    <MapContainer center={CENTER} zoom={9} minZoom={8} maxZoom={16} className={styles.map}>
+      <MapEvents placing={placing} onPlace={onPlace} />
+      <FlyTo target={flyTo} />
+      <TileLayer key={dark ? "dark" : "light"} url={dark ? TILES.dark : TILES.light} attribution={ATTRIBUTION} />
+      <GeoJSON key={layerKey} data={tracts} style={style} onEachFeature={onEachFeature} />
+      <TileLayer key={dark ? "ld" : "ll"} url={dark ? TILES.labelsDark : TILES.labelsLight} pane="markerPane" opacity={0.9} />
+      {showCompetitors &&
+        competitors.map((c) => (
+          <CircleMarker key={c.id} center={[c.lat, c.lon]} radius={4} pathOptions={{ color: stroke, weight: 1, fillColor: COMPETITOR_COLOR, fillOpacity: 0.9 }}>
+            <Tooltip direction="top" offset={[0, -4]}>{c.name} · competitor</Tooltip>
+          </CircleMarker>
+        ))}
+      {dcs.map((d) => {
+        const r = result?.dcs.find((x) => x.id === d.id);
+        const used = r ? Object.entries(r.weeklyDemand).filter(([, v]) => v > 0).map(([c, v]) => `${c.replace("specialty:", "")} ${pct(Math.min(1, v / Math.max(1, r.capacity[c] ?? 0)))}`).join(", ") : "";
+        return (
+          <CircleMarker key={d.id} center={[d.lat, d.lon]} radius={10} pathOptions={{ color: ink, weight: 2, fillColor: DC_COLOR, fillOpacity: 1 }}>
+            <Tooltip direction="top" offset={[0, -10]}>{d.name} · distribution center{used ? ` · ${used}` : ""}</Tooltip>
+          </CircleMarker>
+        );
+      })}
+      {stores.map((s) => {
+        const r = result?.stores.find((x) => x.id === s.id);
+        return (
+          <CircleMarker
+            key={s.id}
+            center={[s.lat, s.lon]}
+            radius={s.proposed ? 9 : 8}
+            pathOptions={{ color: mode === "primary" ? (storeSlot.get(s.id) ?? ink) : ink, weight: mode === "primary" ? 4 : 2, fillColor: STORE_TYPE_COLORS[s.type], fillOpacity: 1, dashArray: s.proposed ? "3 3" : undefined }}
+            eventHandlers={s.proposed ? { click: () => onRemoveStore(s.id) } : {}}
+          >
+            <Tooltip direction="top" offset={[0, -9]}>
+              {s.name} · {s.type}
+              {s.segments.length ? ` (${s.segments.map((g) => segmentLabels[g] ?? g).join(", ")})` : ""}
+              {r ? ` · ${money(r.revenue)}/yr` : ""}
+              {s.proposed ? " · proposed, click to remove" : ""}
+            </Tooltip>
+          </CircleMarker>
+        );
+      })}
+      {searchMarker && (
+        <CircleMarker center={[searchMarker.lat, searchMarker.lon]} radius={9} pathOptions={{ color: ink, weight: 2, fillColor: "#eda100", fillOpacity: 1 }}>
+          <Tooltip direction="top" offset={[0, -9]} permanent>{searchMarker.label}</Tooltip>
+        </CircleMarker>
+      )}
+    </MapContainer>
+  );
+}
+
+export function ourShare(t: MarketResult["tracts"][number]): number {
+  if (t.total <= 0) return 0;
+  return Object.entries(t.byCategory).reduce((s, [c, v]) => s + v * (t.captured[c] ?? 0), 0) / t.total;
+}
+
+export function uncaptured(t: MarketResult["tracts"][number]): number {
+  return t.total * (1 - ourShare(t));
+}
+
+export { GREEN };

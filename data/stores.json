@@ -1,0 +1,7 @@
+[
+  { "id": "s1", "name": "Midtown Sweets", "type": "general", "lon": -84.3830, "lat": 33.7816, "size": 1.2, "segments": [], "dc": "dc-west" },
+  { "id": "s2", "name": "Decatur Square Candy", "type": "general", "lon": -84.2963, "lat": 33.7748, "size": 1.0, "segments": [], "dc": "dc-east" },
+  { "id": "s3", "name": "Marietta Square Confections", "type": "general", "lon": -84.5499, "lat": 33.9526, "size": 1.0, "segments": [], "dc": "dc-west" },
+  { "id": "s4", "name": "Avalon Candy Co.", "type": "general", "lon": -84.2810, "lat": 34.0716, "size": 1.1, "segments": [], "dc": "dc-east" },
+  { "id": "s5", "name": "Buford Highway World Sweets", "type": "specialty", "lon": -84.2750, "lat": 33.8880, "size": 1.0, "segments": ["eastasia", "latam"], "dc": "dc-east" }
+]
