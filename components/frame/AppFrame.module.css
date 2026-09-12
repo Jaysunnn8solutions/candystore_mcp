@@ -14,11 +14,16 @@
      heights; the map's lead is only threatened on a short window, which the
      max-height branches below still answer by cutting the deck first. */
   --deck-h: 204px;
-  --dial-w: 148px;
-  --tab-row: 40px;
-  /* A segment row is a radio, so it owns a 24px target. Narrow is not short:
-     the width breakpoints below leave this alone and only the height ones cut
-     it, where the pointer target is held open by a pseudo-element instead. */
+  /* --dial-w and --tab-row sat here and were re-tuned at three of the
+     breakpoints below, and nothing ever read either one: .dial sizes itself
+     from its own two rows (Widgets.module.css) and no rule anywhere asks for a
+     tab row. Dropped rather than wired up, so every property in this block is
+     one a region really reads. */
+  /* A segment row is a radio, so it owns a 24px target. That is a floor, not a
+     knob: no breakpoint cuts it, because a shorter row would have to buy the
+     target back with a pseudo-element reaching into the row gap, which is the
+     arrangement .segList in LensRail.module.css rejects. The comment that stood
+     here described width and height breakpoints that never touched it. */
   --seg-row: 24px;
   --hero-size: 32px;
   --fig-size: 26px;
@@ -40,9 +45,17 @@
 .bar {
   grid-area: bar;
   min-width: 0;
-  /* So the dropped-link notice can hang below the bar without a track change. */
+  /* So the dropped-link notice and the About/Share popovers can hang below the
+     bar without a track change.
+     Positioned, but deliberately without a z-index: any value here makes the
+     bar a stacking context, and then everything it hangs below itself is ranked
+     against its siblings inside the bar instead of against the rest of the
+     frame. With z-index: 3 the board overlay at 950 painted over popovers that
+     ask for 1000, so About was read with its right third behind the board.
+     Every one of them carries its own z-index (OutcomeBar.module.css: .dropped,
+     .sharePop, .aboutPop at 1000), which now competes at the document root,
+     where it clears the board at 950 and the map pane at 0. */
   position: relative;
-  z-index: 3;
 }
 
 .lens {
@@ -163,7 +176,6 @@
     --rail-l: 288px;
     --rail-r: 340px;
     --deck-h: 212px;
-    --tab-row: 44px;
   }
 }
 
@@ -172,8 +184,6 @@
     --bar-h: 80px;
     --rail-l: 224px;
     --rail-r: 272px;
-    --dial-w: 112px;
-    --tab-row: 36px;
     --hero-size: 26px;
     --fig-size: 20px;
   }
@@ -184,8 +194,6 @@
     --bar-h: 76px;
     --rail-l: 208px;
     --rail-r: 248px;
-    --dial-w: 96px;
-    --tab-row: 32px;
     --hero-size: 22px;
     --fig-size: 18px;
   }

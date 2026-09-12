@@ -35,6 +35,11 @@ export function YearStrip({ startWeek, weeks, onStartWeek, readOnly }: { startWe
   // brackets rather than one that would stretch backwards.
   const end = startWeek + weeks - 1;
   const spans = end <= 52 ? [[startWeek, end]] : [[startWeek, 52], [1, ((end - 1) % 52) + 1]];
+  // The label reads the same spans the brackets draw. It used to print the raw
+  // `startWeek + weeks - 1`, so the default 26 weeks from week 36 announced
+  // "weeks 36 to 61" — a week no calendar has, and no sign that the window
+  // wraps into the next year, which is the one thing two brackets are for.
+  const inWindow = spans.map(([a, b]) => `weeks ${a} to ${b}`).join(" and ");
 
   return (
     <div className={`${styles.ruler} ${readOnly ? styles.rulerWide : ""}`}>
@@ -44,7 +49,7 @@ export function YearStrip({ startWeek, weeks, onStartWeek, readOnly }: { startWe
         preserveAspectRatio="none"
         aria-hidden={readOnly ? undefined : "true"}
         role={readOnly ? "img" : undefined}
-        aria-label={readOnly ? `The forecast year: weeks ${startWeek} to ${startWeek + weeks - 1} are in the window, and weeks 42 to 44 and 49 to 52 are the Halloween and Christmas peaks.` : undefined}
+        aria-label={readOnly ? `The forecast year: ${inWindow} are in the window, and weeks 42 to 44 and 49 to 52 are the Halloween and Christmas peaks.` : undefined}
       >
         {SEASON_PEAKS.map((s) => (
           <rect key={s.label} x={x(s.from)} y={0} width={x(s.to + 1) - x(s.from)} height={18} fill="var(--hover)" stroke="var(--grid)" strokeWidth={1} />

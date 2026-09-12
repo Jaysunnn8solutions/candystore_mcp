@@ -47,6 +47,31 @@ export function DecisionRail(p: Props) {
   const closedSet = useMemo(() => new Set(p.closed), [p.closed]);
   const open = p.allStores.filter((s) => !closedSet.has(s.id));
   const shut = p.allStores.filter((s) => closedSet.has(s.id));
+  /*
+   * A link can carry a closed id this data does not have — the hash reader
+   * accepts any id under 40 characters and the model drops unknown ids without
+   * saying so. Intersecting with the roster made that id disappear from the rail
+   * while the outcome bar's chip still counted it, so two figures on screen
+   * disagreed and the only way out was the chip's × , which also wipes the
+   * added stores and capacity overrides the same link carried. The id is all
+   * there is to name it by, and it gets its own switch so it can be undone
+   * alone.
+   */
+  const known = useMemo(() => new Set(p.allStores.map((s) => s.id)), [p.allStores]);
+  /*
+   * Only once the roster has arrived. `allStores` is empty until /api/static
+   * resolves, and that request is issued beside the tract GeoJSON, the heaviest
+   * payload in the app — so during every cold load of a shared link carrying
+   * closures, every id in it looked unknown. The rail read "0 open · 3 closed"
+   * over three struck-through raw ids, each claiming no store had that id, for
+   * perfectly valid stores, and it stayed that way for good if the fetch failed.
+   * An empty roster is not evidence that an id is wrong.
+   */
+  const orphans = useMemo(
+    () => (p.allStores.length === 0 ? [] : [...closedSet].filter((id) => !known.has(id))),
+    [closedSet, known, p.allStores.length]
+  );
+  const closedCount = shut.length + orphans.length;
   const maxDemand = Math.max(1, ...(p.result?.stores ?? []).map((s) => s.demand));
 
   const types = [p.budget.general && "general", p.budget.specialty && "specialty"].filter(Boolean) as StoreType[];
@@ -87,7 +112,7 @@ export function DecisionRail(p: Props) {
   return (
     <div ref={rail} className={styles.rail} data-armed={p.placing ? "true" : undefined} data-planned={p.plan ? "true" : undefined}>
       <h2 className={w.h2}>
-        Our stores<span>{open.length} open{p.scenario.length > 0 ? ` · +${p.scenario.length} new` : ""}{shut.length > 0 ? ` · ${shut.length} closed` : ""}</span>
+        Our stores<span>{open.length} open{p.scenario.length > 0 ? ` · +${p.scenario.length} new` : ""}{closedCount > 0 ? ` · ${closedCount} closed` : ""}</span>
       </h2>
       <div className={styles.addRow}>
         {(["general", "specialty"] as StoreType[]).map((t) => (
@@ -112,8 +137,19 @@ export function DecisionRail(p: Props) {
       <ul className={styles.roster}>
         {open.map((s) => row(s, "open"))}
         {p.scenario.map((s) => row(s, "proposed"))}
-        {shut.length > 0 && <li className={styles.closedHead}>Closed</li>}
+        {closedCount > 0 && <li className={styles.closedHead}>Closed</li>}
         {shut.map((s) => row(s, "closed"))}
+        {orphans.map((id) => (
+          <li key={`gone-${id}`} className={styles.storeRow} data-closed="true">
+            {/* No type, so no type colour: the dot falls back to --muted. */}
+            <span className={`${w.dot} ${w.dotRing}`} aria-hidden />
+            <span className={styles.storeName} title={`${id} — closed by the link, but no store with that id is in this data`}>{id}</span>
+            <span className={styles.storeFig}>
+              <span className={styles.storeMoney}>unknown</span>
+            </span>
+            <OpenSwitch closed name={id} onToggle={() => p.onToggleClosed(id)} />
+          </li>
+        ))}
       </ul>
 
       <div className={styles.spacer} />

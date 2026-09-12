@@ -276,10 +276,45 @@ button.fig:hover {
   padding: 0 4px;
 }
 
+/*
+ * The copy confirmation. It used to sit in .actionRow, inside the bar's third
+ * `auto` track, as a nowrap 69-character line: that made its full width the
+ * track's min width, so every successful "Copy for Claude" squeezed the funnel
+ * from 648px to 297px and overlapped the four headline figures for two seconds,
+ * and at phone width the message itself was hard-clipped mid-sentence. It hangs
+ * below the bar now, like the dropped-link notice, so it is out of the grid's
+ * sizing path entirely and can wrap to be read in full.
+ */
 .status {
+  position: absolute;
+  top: 100%;
+  right: 14px;
+  /* One above .dropped, which hangs from the same edge and is later in the
+     header's DOM order: a two-second confirmation must not open underneath a
+     banner that stays until it is dismissed. */
+  z-index: 1001;
+  margin-top: 6px;
+  max-width: calc(100vw - 28px);
+  padding: 4px 10px;
   font-size: 11px;
+  line-height: 1.4;
   color: var(--text-secondary);
-  white-space: nowrap;
+  background: var(--elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  /* Nothing in a confirmation is clickable, and for two seconds this box sits
+     over the top-right of the decision rail. Without this it ate every click
+     landing there, and it covered the dropped-link notice's × — the only way to
+     clear a banner that otherwise stays until dismissed. */
+  pointer-events: none;
+}
+
+/* When a dropped-link notice is up, the confirmation clears it rather than
+   sitting on top of it. Both hang from the same edge, and the notice is the one
+   that stays. */
+.bar:has(.dropped) .status {
+  margin-top: 30px;
 }
 
 .dropped {

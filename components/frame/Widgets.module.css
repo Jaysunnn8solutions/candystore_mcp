@@ -405,6 +405,20 @@
   min-height: 14px;
 }
 
+/* "Lost to caps · raise capacity ↓" and the plan's capacity note both focus the
+   worst row by id. The row is an <li>, which the app-wide ring in globals.css
+   does not match, and a programmatic focus after a mouse click is not
+   :focus-visible either — so the jump moved focus and painted nothing, and to a
+   pointer user the tile looked dead. The ring is inset because the card clips
+   its own overflow, exactly as .stepInput and .segmented button already are. */
+.meterRow:focus,
+.meterRow:target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px;
+  background: var(--hover);
+}
+
 .meterName {
   font-size: 11px;
   color: var(--text-secondary);
@@ -670,10 +684,11 @@
   width: 100%;
 }
 
-.twoTone {
-  height: 3px;
-}
-
+/* 4px, matching .pickBar. At 3px the 1px boundary ring below took the top and
+   bottom rows and left a single pixel of the fill showing, so the mark read as
+   the ring's grey while its legend swatch read pale blue — the two could not be
+   matched. At 4px the fill keeps a 2px core. */
+.twoTone,
 .pickBar {
   height: 4px;
 }
@@ -690,12 +705,25 @@
   background: var(--fill);
 }
 
+/* This is a data series with a legend row, not a meter track. --fill-track is
+   built to disappear into the surface behind it, which is right for an unfilled
+   meter and wrong here: #cde2fb measures 1.29:1 against the rail's --surface
+   (1.46:1 in dark), so the segment's right edge — the quantity the legend names
+   — could not be located at all. The fill stays --fill-track because the legend
+   swatch beside it is that token; the boundary is what carries the 3:1, in
+   --muted, the same ink the meter's 80% mark and the forecast's cap rule use. */
 .twoTone span:nth-child(2) {
   background: var(--fill-track);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
+/* The same construction one rail down, and the same failure: --fill-soft is
+   2.06:1 against --surface in light mode, so the expansion plan's "pulled from
+   our own stores" segment had no locatable edge either. Dark measures 8.25:1,
+   which is why only half the app looked wrong. Same remedy, same ink. */
 .pickBar span:nth-child(2) {
   background: var(--fill-soft);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
 /* ---------- Legend keys ---------- */

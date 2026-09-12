@@ -115,8 +115,12 @@
 .capPop {
   position: fixed;
   z-index: 1200;
-  width: 300px;
-  max-height: 260px;
+  width: min(300px, calc(100vw - 16px));
+  /* --room is the space the placement actually found on the side it opened, so
+     the box can never leave the viewport. Anchored by its bottom edge with no
+     ceiling, it used to grow straight past the top of the window on the stacked
+     page — heading and close button first. */
+  max-height: min(260px, var(--room, 260px));
   overflow-y: auto;
 }
 

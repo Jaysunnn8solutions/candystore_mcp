@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom";
 import type { SimulationResult } from "@/lib/model/simulate";
 import type { DcResult, DistributionCenter, MarketResult, ScenarioParams } from "@/lib/model/types";
-import { DC_COLOR, MONTH_LABELS, MONTH_START_WEEK, meterLevel, money, pct } from "../scales";
+import { DC_COLOR, MONTH_LABELS, MONTH_START_WEEK, meterLevel, money } from "../scales";
 import { CalibrationStrip } from "./CalibrationStrip";
 import { ForecastFacets } from "./ForecastFacets";
 import { YearStrip } from "./YearStrip";
 import type { ForecastDraft, ForecastRequest, PopoverId } from "./types";
 import { useOverflowWarn } from "./useOverflowWarn";
-import { Meter } from "./widgets/Meter";
+import { Meter, meterFigure } from "./widgets/Meter";
 import { Segmented } from "./widgets/Segmented";
 import { Stepper } from "./widgets/Stepper";
 import styles from "./SupplyDeck.module.css";
@@ -35,6 +35,12 @@ interface Props {
   onForecastDraft: (d: ForecastDraft) => void;
   onForecast: (r: ForecastRequest) => Promise<void>;
   forecast: SimulationResult | null;
+  /**
+   * Total weekly capacity per centre as it stood when that forecast ran, null
+   * until one has. The chart's bars only move when a run completes, so its cap
+   * rule and its scale have to come from the same moment — see capsFor().
+   */
+  forecastCaps?: Record<string, number> | null;
   forecasting: boolean;
   forecastView: ForecastView;
   onForecastView: (v: ForecastView) => void;
@@ -169,11 +175,22 @@ export function SupplyDeck(p: Props) {
   );
 }
 
-function ForecastPanel(p: Props) {
-  const capacityByDc = useMemo(
-    () => Object.fromEntries(p.dcs.map((d) => [d.id, Object.values(p.result?.dcs.find((x) => x.id === d.id)?.capacity ?? d.capacity).reduce((a, b) => a + b, 0)])),
-    [p.dcs, p.result]
+/**
+ * The weekly cap the forecast chart draws its rule, its label and its scale
+ * from. It has to be the capacity the run used: the bars only change when a
+ * forecast completes, so reading the live result instead rescaled the whole
+ * chart under old bars on the next capacity edit — a ×2.0 stepper turned a
+ * capped simulation into comfortable headroom without touching a bar. Falls
+ * back to the live figure for a centre the recorded run does not name.
+ */
+function capsFor(dcs: DistributionCenter[], result: MarketResult | null, ran: Record<string, number> | null | undefined): Record<string, number> {
+  return Object.fromEntries(
+    dcs.map((d) => [d.id, ran?.[d.id] ?? Object.values(result?.dcs.find((x) => x.id === d.id)?.capacity ?? d.capacity).reduce((a, b) => a + b, 0)])
   );
+}
+
+function ForecastPanel(p: Props) {
+  const capacityByDc = useMemo(() => capsFor(p.dcs, p.result, p.forecastCaps), [p.dcs, p.result, p.forecastCaps]);
 
   if (!p.forecast) {
     // A region that jumps on every completed run is worse than stable
@@ -196,8 +213,12 @@ function ForecastPanel(p: Props) {
   return (
     <div className={styles.forecastPanel}>
       <div className={styles.forecastHead}>
+        {/* Every number here names the run's own settings, never the draft
+            beside it. The steppers to the left are the next request, and
+            changing them no longer discards this run, so the two can differ —
+            which makes it this line's job to say which one it is describing. */}
         <p className={styles.verdict}>
-          {money(p.forecast.totals.horizonRevenue)} of orders over {p.forecast.options.weeks} weeks; expected {money(p.forecast.totals.expectedLost)} lost to outages and caps.
+          {money(p.forecast.totals.horizonRevenue)} of orders over {p.forecast.options.weeks} weeks from week {p.forecast.options.startWeek}, at {Math.round(p.forecast.options.outageProbability * 100)}% outage; expected {money(p.forecast.totals.expectedLost)} lost to outages and caps.
         </p>
         <Segmented
           label="Forecast view"
@@ -263,6 +284,41 @@ interface CardProps {
 
 const PILLS = { ok: null, tight: "TIGHT", over: "CAPPED" } as const;
 
+/**
+ * .capPop's width, so the placement can keep the box inside the window without
+ * measuring it. On a window too narrow for 300px the rule there is
+ * `100vw - 16px`, and the clamp below already resolves to the same 8px margin.
+ */
+const CAP_POP_W = 300;
+
+interface Spot {
+  left: number;
+  top?: number;
+  bottom?: number;
+  /** The room the chosen side has, which is all the height the box may take. */
+  room: number;
+}
+
+/**
+ * Where the capacity list goes. It used to set `left` and `bottom` only, which
+ * is safe while the deck is pinned to the bottom of the frame but not below
+ * 1000px, where the deck is the last block of a long scrolling page: anchored
+ * to a card near the top of the screen, the box grew straight up past the top
+ * of the window and took its heading and its close button with it. So it opens
+ * on whichever side has the room and never asks for more height than that side
+ * has.
+ */
+function place(r: DOMRect, width: number): Spot {
+  const gap = 6;
+  const edge = 8;
+  const above = r.top - gap - edge;
+  const below = window.innerHeight - r.bottom - gap - edge;
+  const left = Math.max(edge, Math.min(r.left, window.innerWidth - width - edge));
+  return above >= below
+    ? { left, bottom: window.innerHeight - r.top + gap, room: Math.max(0, above) }
+    : { left, top: r.bottom + gap, room: Math.max(0, below) };
+}
+
 export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPopover, worstId, visibleMeters, all }: CardProps & { all?: boolean }) {
   const card = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLDivElement>(null);
@@ -270,34 +326,65 @@ export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPo
   const head = useRef<HTMLElement>(null);
   // The deck clips its own overflow so the cards stay inside it, so the full
   // list has to leave the deck entirely to be seen.
-  const [at, setAt] = useState<{ left: number; bottom: number } | null>(null);
+  const [at, setAt] = useState<Spot | null>(null);
   useOverflowWarn(card, `dc card ${dc.id}`);
-  const open = popover === `cap:${dc.id}`;
+  // Board mode mounts a second live copy of every card while the deck's is
+  // still up, so every id here carries a namespace. Two identical
+  // `cap-dc-east-traditional` fields meant the board's label focused the deck's
+  // stepper, and the board copy's popover effect ran against the deck's open
+  // popover and closed it on the next click. The board copy folds nothing away,
+  // so its own key is never opened.
+  const ns = all ? `board-${dc.id}` : dc.id;
+  const open = popover === `cap:${ns}`;
 
   /*
    * Portaled to the body, so its tab position is the end of the document rather
    * than beside the disclosure that opened it: focus has to be moved in by
-   * hand. Dismissal matches SharePopover — Esc from the dashboard's one key
-   * listener, its own ×, or a pointerdown strictly outside it. And the position
-   * is captured from the anchor at click time, so it has to be recaptured on a
-   * resize or it detaches from the card it belongs to.
+   * hand, and handed back by hand. Every dismissal path unmounts the portal
+   * while focus is inside it, which drops focus to <body> and restarts the next
+   * Tab at the top of the document. Dismissal matches SharePopover — Esc from
+   * the dashboard's one key listener, its own ×, or a pointerdown strictly
+   * outside it. And the position is captured from the anchor at click time, so
+   * it has to be recaptured on a resize or a scroll or it detaches from the card
+   * it belongs to; below 1000px the page itself is what scrolls.
    */
   useEffect(() => {
     if (!open) return;
+    const before = document.activeElement as HTMLElement | null;
+    // The portal is already mounted by the time this runs, and React keeps the
+    // same node across re-renders, so the cleanup can hold it directly rather
+    // than read a ref that may have been cleared by then.
+    const box = pop.current;
     head.current?.focus();
-    const place = () => {
+    const reposition = () => {
       const r = anchor.current?.getBoundingClientRect();
-      if (r) setAt({ left: r.left, bottom: window.innerHeight - r.top + 6 });
+      if (r) setAt(place(r, CAP_POP_W));
     };
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
       if (!pop.current?.contains(t) && !anchor.current?.contains(t)) onPopover(null);
     };
-    window.addEventListener("resize", place);
+    // Focus mode collapses the deck and marks it inert, but this list hangs off
+    // the body, where neither reaches it: it stayed on screen over the map the
+    // frame had just cleared, clickable and still in the tab order. The frame's
+    // own switch is the attribute its stylesheet already collapses on.
+    const frameRoot = anchor.current?.closest("[data-app-frame]");
+    const watch = new MutationObserver(() => {
+      if (frameRoot?.getAttribute("data-focus") === "true") onPopover(null);
+    });
+    if (frameRoot) watch.observe(frameRoot, { attributes: true, attributeFilter: ["data-focus"] });
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
     document.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("resize", place);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
       document.removeEventListener("pointerdown", onDown);
+      watch.disconnect();
+      // Only when focus is still ours to give back: a pointerdown outside has
+      // already put it on something the user chose.
+      const now = document.activeElement;
+      if (!now || now === document.body || box?.contains(now)) before?.focus();
     };
   }, [open, onPopover]);
   const factorFor = (category: string) => capacityScale.find((c) => c.dc === dc.id && c.category === category)?.factor ?? 1;
@@ -330,9 +417,9 @@ export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPo
 
         {(["traditional", "specialty:*"] as const).map((cat) => (
           <div key={cat} className={styles.capRow}>
-            <label htmlFor={`cap-${dc.id}-${cat}`}>{cat === "traditional" ? "Traditional" : "Specialty"}</label>
+            <label htmlFor={`cap-${ns}-${cat}`}>{cat === "traditional" ? "Traditional" : "Specialty"}</label>
             <Stepper
-              id={`cap-${dc.id}-${cat}`}
+              id={`cap-${ns}-${cat}`}
               label={`${cat === "traditional" ? "traditional" : "specialty"} capacity at ${dc.name}`}
               value={factorFor(cat)}
               onChange={(v) => onCapacityScale(dc.id, cat, v)}
@@ -358,22 +445,34 @@ export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPo
             type="button"
             className={styles.moreRow}
             aria-expanded={open}
-            aria-controls={`cap-${dc.id}`}
+            aria-controls={`cap-${ns}`}
             onClick={() => {
               if (open) return onPopover(null);
               const r = anchor.current?.getBoundingClientRect();
-              if (r) setAt({ left: r.left, bottom: window.innerHeight - r.top + 6 });
-              onPopover(`cap:${dc.id}`);
+              if (r) setAt(place(r, CAP_POP_W));
+              onPopover(`cap:${ns}`);
             }}
           >
-            +{hidden.length} more · worst {pct(worstHidden.demand / Math.max(1, worstHidden.capacity))}
+            {/* The figure the meters print, not demand over Math.max(1,
+                capacity): that guard belongs in the sort key, where it only
+                orders rows. Printed, it divided weekly dollars by $1 and turned
+                a category stepped to ×0 into "worst 240000%" — beside a CAPPED
+                pill computed from the honest rule. */}
+            +{hidden.length} more · worst {meterFigure(worstHidden.demand, worstHidden.capacity)}
             {PILLS[hiddenLevel] && <em className={`${w.flag} ${hiddenLevel === "over" ? w.flagPriority : w.flagWatch}`}>{PILLS[hiddenLevel]}</em>}
           </button>
         )}
       </div>
 
       {open && at && createPortal(
-        <div ref={pop} id={`cap-${dc.id}`} className={`${w.popover} ${styles.capPop}`} role="dialog" aria-label={`${dc.name} — every capacity category`} style={{ left: at.left, bottom: at.bottom }}>
+        <div
+          ref={pop}
+          id={`cap-${ns}`}
+          className={`${w.popover} ${styles.capPop}`}
+          role="dialog"
+          aria-label={`${dc.name} — every capacity category`}
+          style={{ left: at.left, top: at.top, bottom: at.bottom, ["--room" as string]: `${at.room}px` } as CSSProperties}
+        >
           <div className={w.popHead}>
             <strong ref={head} tabIndex={-1}>{dc.name} · every category</strong>
             <span style={{ flex: 1 }} />
@@ -397,10 +496,7 @@ export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPo
 export function BoardPanel(p: Props) {
   const many = p.dcs.length > 2;
   const shown = many ? p.dcs.filter((d) => d.id === p.activeDc) : p.dcs;
-  const capacityByDc = useMemo(
-    () => Object.fromEntries(p.dcs.map((d) => [d.id, Object.values(p.result?.dcs.find((x) => x.id === d.id)?.capacity ?? d.capacity).reduce((a, b) => a + b, 0)])),
-    [p.dcs, p.result]
-  );
+  const capacityByDc = useMemo(() => capsFor(p.dcs, p.result, p.forecastCaps), [p.dcs, p.result, p.forecastCaps]);
 
   return (
     <div className={styles.boardGrid} data-many={many ? "true" : undefined}>

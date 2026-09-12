@@ -41,6 +41,15 @@ export function Legend({ mode, breaks, stores, storeSlots, showCompetitors, onSh
     );
   }
 
+  /*
+   * One phrase per class, five of them, matching the five ramp() paints. The
+   * old string said "under $b0" and then listed $b0 again as the next item and
+   * $b3 twice, so it announced six bands and put the same threshold in two of
+   * them — a listener could not reconstruct the scale from it.
+   */
+  const cut = (i: number) => money(breaks[i] ?? 0);
+  const bands = [`under ${cut(0)}`, `${cut(0)} to ${cut(1)}`, `${cut(1)} to ${cut(2)}`, `${cut(2)} to ${cut(3)}`, `${cut(3)} and up`].join("; ");
+
   return (
     <div className={styles.legend}>
       {sequential && (
@@ -51,7 +60,7 @@ export function Legend({ mode, breaks, stores, storeSlots, showCompetitors, onSh
           <div
             className={styles.breaks}
             role="img"
-            aria-label={`${mode === "specialty" ? "Specialty demand" : mode === "uncaptured" ? "Uncaptured demand" : "Demand"} per tract, in five steps light to dark: under ${money(breaks[0] ?? 0)}, then ${breaks.map((b) => money(b ?? 0)).join(", ")}, then ${money(breaks[3] ?? 0)} and up.`}
+            aria-label={`${mode === "specialty" ? "Specialty demand" : mode === "uncaptured" ? "Uncaptured demand" : "Demand"} per tract, in five steps light to dark: ${bands}.`}
           >
             {breaks.map((b, i) => (
               <span key={i} style={{ left: `${((i + 1) / 5) * 100}%` }}>{money(b ?? 0)}</span>

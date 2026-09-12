@@ -49,6 +49,11 @@ export function LensRail(p: Props) {
   const maxDemand = Math.max(1, ...(p.result?.segments ?? []).map((s) => s.demand));
   const rows = [...p.segments].sort((a, b) => (counts.get(b.id)?.demand ?? 0) - (counts.get(a.id)?.demand ?? 0));
   const enabled = rows.filter((r) => (counts.get(r.id)?.markets ?? 0) > 0 || r.id === p.segment);
+  // `enabled` is the navigation set, not a count of markets: it holds the
+  // selected segment even when that segment has none, so the radiogroup always
+  // keeps a tab stop. Counting it in the header printed a segment with zero
+  // tracts as a market, against the bare 0 on its own row two lines below.
+  const withMarkets = rows.filter((r) => (counts.get(r.id)?.markets ?? 0) > 0).length;
 
   const moveTab = (delta: number) => {
     const i = MODES.findIndex((m) => m.id === p.mode);
@@ -121,7 +126,7 @@ export function LensRail(p: Props) {
 
       <div className={styles.segBlock}>
         <h2 className={w.h2}>
-          Segments<span>{enabled.length} of {rows.length} markets</span>
+          Segments<span>{withMarkets} of {rows.length} markets</span>
         </h2>
         <div
           ref={segs}
@@ -241,14 +246,18 @@ function SearchField({ onSearch, onGoTo, popover, onPopover }: Pick<Props, "onSe
                 <li key={`${m.lat},${m.lon}`}>
                   <button
                     type="button"
+                    // Name and kind are each one truncated line inside a
+                    // rail-width box; the title is the only place the full
+                    // string still fits.
+                    title={m.kind ? `${m.label} · ${m.kind}` : m.label}
                     onClick={() => {
                       onGoTo({ lon: m.lon, lat: m.lat, label: m.label });
                       setMatches(null);
                       onPopover(null);
                     }}
                   >
-                    {m.label}
-                    {m.kind ? <span className={w.muted}> · {m.kind}</span> : null}
+                    <span className={styles.matchName}>{m.label}</span>
+                    {m.kind ? <span className={`${styles.matchKind} ${w.muted}`}>{m.kind}</span> : null}
                   </button>
                 </li>
               ))}

@@ -124,10 +124,29 @@ a {
 }
 
 /* Matches the width at which the frame linearizes. Anything narrower is a
-   stacked page that has to be able to scroll. */
+   stacked page that has to be able to scroll.
+   The height has to go with the overflow. This used to flip overflow alone, so
+   html stayed exactly one viewport tall with nothing to scroll while body — the
+   other 100% box — became an inner scroll container holding the whole 2400px
+   page: window.scrollY, window.scrollTo and fragment navigation were all inert,
+   mobile browsers kept the URL bar pinned open, and body scrolled in both axes,
+   which is where the horizontal strip across the bottom came from. auto height
+   with a min-height floor hands the scrolling back to the viewport. */
 @media (max-width: 999px) {
   html,
   body {
-    overflow: auto;
+    height: auto;
+    min-height: 100%;
+    /* visible, not auto: an auto body is still a scroll container of its own.
+       On the root, visible propagates to the viewport, which is the scroller
+       this page wants. */
+    overflow: visible;
+  }
+
+  /* The page never scrolls sideways — it linearizes instead — so clip the
+     sub-pixel overflow the stacked frame rounds up to rather than let it put a
+     scrollbar across the bottom. Clip on one axis leaves the other visible. */
+  html {
+    overflow-x: clip;
   }
 }

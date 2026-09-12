@@ -55,6 +55,49 @@ function scenarioBody(params: ScenarioParams, view: Pick<ViewState, "scenario" |
 }
 
 /**
+ * A run is only current while the market it simulated is still the market on
+ * screen. That is the scenario body: stores, closures, capacity overrides and
+ * the model parameters. Change any of those and the run is a simulation of a
+ * different chain, so it is withheld.
+ *
+ * The horizon, start week and outage rate are deliberately NOT in the key. They
+ * are the draft of the next request, not a description of this one, and every
+ * surface that shows a run reads its length and settings from the run's own
+ * `options`. Keying on them meant nudging the weeks stepper — which sits inches
+ * from the chart, and is exactly how someone compares two horizons — threw away
+ * a completed run and replaced it with a "Not run" panel, which was also the
+ * one sentence that was untrue at that moment.
+ */
+function forecastKeyOf(inputs: string): string {
+  return inputs;
+}
+
+/**
+ * Weekly capacity per centre, summed over categories, as the server computes it
+ * — this mirrors effectiveDcs in lib/model/market.ts: base capacity times every
+ * capacityScale factor that matches the category, wildcards included. Taken from
+ * the overrides rather than from the market result on screen because that result
+ * can still be the one before the edit a forecast run already carried, and a cap
+ * line drawn from the wrong scenario is the whole defect this closes.
+ */
+function capacityTotals(dcs: DistributionCenter[], capacityScale: ViewState["capacityScale"]): Record<string, number> {
+  return Object.fromEntries(
+    dcs.map((d) => {
+      let total = 0;
+      for (const [cat, base] of Object.entries(d.capacity)) {
+        let cap = base;
+        for (const s of capacityScale) {
+          const match = s.dc === d.id && (s.category === "*" || s.category === cat || (s.category === "specialty:*" && cat.startsWith("specialty:")));
+          if (match) cap *= s.factor;
+        }
+        total += cap;
+      }
+      return [d.id, total];
+    })
+  );
+}
+
+/**
  * The server re-ids added stores by their position in the `add` array
  * (`new-0`, `new-1`, …), so the client has to use the same positional ids or
  * every lookup by store id into the returned result misses. Renumbering on
@@ -121,9 +164,15 @@ export function Dashboard() {
   const [version, setVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [plan, setPlan] = useState<SitePlan | null>(null);
+  // The plan and the forecast are keyed on the inputs they were computed from,
+  // exactly as `result` is below. Neither used to be, so a plan went on naming
+  // stores the roster no longer held and a forecast went on being drawn beside
+  // outcome figures from a different scenario, with nothing on screen saying so.
+  // `caps` is the capacity that run was posted with; the chart's cap line has to
+  // come from there and not from the live result, which moves under it.
+  const [plan, setPlan] = useState<{ key: string; value: SitePlan } | null>(null);
   const [planning, setPlanning] = useState(false);
-  const [forecast, setForecast] = useState<SimulationResult | null>(null);
+  const [forecast, setForecast] = useState<{ key: string; value: SimulationResult; caps: Record<string, number> } | null>(null);
   const [forecasting, setForecasting] = useState(false);
 
   // Layout and draft state. None of it reaches the hash, and none of it may
@@ -190,8 +239,11 @@ export function Dashboard() {
     }, [])
   );
 
-  // Scenario.
-  const scenarioKey = scenarioActive ? scenarioBody(params, { scenario, closed, capacityScale }) : null;
+  // Scenario. One string stands for "the inputs any run was computed from", so
+  // the scenario fetch, the plan and the forecast all judge staleness the same
+  // way. Only the fetch is skipped when nothing is overridden.
+  const inputsKey = scenarioBody(params, { scenario, closed, capacityScale });
+  const scenarioKey = scenarioActive ? inputsKey : null;
   useDebouncedFetch(
     scenarioKey,
     useCallback((signal: AbortSignal) => getJson<MarketResult>("/api/market", { method: "POST", headers: { "Content-Type": "application/json" }, body: scenarioKey ?? "{}", signal }), [scenarioKey]),
@@ -213,6 +265,14 @@ export function Dashboard() {
   const scenarioShown = scenarioKey !== null && result?.key === scenarioKey ? result.value : null;
   const shown = scenarioShown ?? baseline;
   const busy = loading || (scenarioKey !== null && result?.key !== scenarioKey);
+  // Same rule for the two runs the user starts by hand. A plan whose key no
+  // longer matches is describing a roster that has since changed, and a forecast
+  // whose key no longer matches is a simulation of different inputs, so both are
+  // withheld rather than shown beside figures that disagree with them. The deck
+  // already has a designed "Not run" state that says what the current settings
+  // would simulate, which is the honest thing to show in their place.
+  const planShown = plan?.key === inputsKey ? plan.value : null;
+  const forecastRun = forecast?.key === forecastKeyOf(inputsKey) ? forecast : null;
   const stores = useMemo(() => {
     const base = (staticData?.stores ?? []).filter((s) => !closed.includes(s.id));
     return [...base, ...scenario];
@@ -254,7 +314,12 @@ export function Dashboard() {
       setPlanning(true);
       try {
         const r = await getJson<SitePlan>("/api/sites", { method: "POST", headers: { "Content-Type": "application/json" }, body: scenarioBody(params, { scenario, closed, capacityScale }, { ...req }) });
-        setPlan(r);
+        // Keyed against the roster the plan leaves behind, not the one it ran
+        // on: its picks join the scenario on the next line, so keying it on the
+        // inputs would make it stale the instant it arrived. Delete one of those
+        // stores afterwards and the key no longer matches, which is the point —
+        // the plan stops claiming a store the rail above it no longer lists.
+        setPlan({ key: scenarioBody(params, { scenario: [...scenario, ...r.picks.map((k) => k.store)], closed, capacityScale }), value: r });
         if (r.picks.length === 0) {
           // Same reason the panel gives for leftover capital, rather than
           // blaming revenue when the run was stopped by cost or by the clock.
@@ -278,7 +343,11 @@ export function Dashboard() {
       setForecasting(true);
       try {
         const r = await getJson<SimulationResult>("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: scenarioBody(params, { scenario, closed, capacityScale }, { ...req, runs: 300 }) });
-        setForecast(r);
+        setForecast({
+          key: forecastKeyOf(scenarioBody(params, { scenario, closed, capacityScale })),
+          value: r,
+          caps: capacityTotals(staticData?.dcs ?? [], capacityScale),
+        });
         setError(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -286,7 +355,7 @@ export function Dashboard() {
         setForecasting(false);
       }
     },
-    [params, scenario, closed, capacityScale]
+    [params, scenario, closed, capacityScale, staticData]
   );
 
   const onCapacityScale = useCallback((dc: string, category: string, factor: number) => {
@@ -326,8 +395,51 @@ export function Dashboard() {
     el?.focus();
   }, []);
 
+  /*
+   * Leaving desktop puts both flags down. They are only *in effect* while wide,
+   * so a narrow window made them invisible rather than false: the board could
+   * not be closed there — Esc tests the derived value, `\` is bound only while
+   * wide, and the button is hidden — so widening the window again sprang a board
+   * open that the user had left behind minutes earlier. Adjusted during render,
+   * the way the stale-key comparisons above are, because an effect that calls
+   * setState is the shape this project's lint rules reject.
+   */
+  const [lastWide, setLastWide] = useState(wide);
+  if (wide !== lastWide) {
+    setLastWide(wide);
+    if (!wide) {
+      setBoardOpen(false);
+      setFocusMode(false);
+    }
+  }
+
+  // Both are desktop states: below 1000px the frame is a stacked page with
+  // nothing to collapse, so they are simply not in effect there.
+  const focused = focusMode && wide;
+  // Board mode reveals the deck's folded rows, and focus mode has no deck, so
+  // the two are never in effect together.
+  const board = boardOpen && wide && !focused;
+
+  // The board takes the map's place and focus mode is the map on its own, so
+  // opening either has to drop the other. They used to be independent flags, and
+  // a board left set behind focus mode was invisible, sprang back open on exit,
+  // and swallowed the Esc that was meant to leave focus mode.
+  const toggleBoard = useCallback(() => {
+    setFocusMode(false);
+    setBoardOpen((v) => !v);
+  }, []);
+  const toggleFocus = useCallback(() => {
+    setBoardOpen(false);
+    setFocusMode((v) => !v);
+  }, []);
+
   // One listener, one precedence order. Four things claim Esc, and the
-  // placing-mode exit must not be the one that loses.
+  // placing-mode exit must not be the one that loses. Esc tests the derived
+  // `board` and `focused` — the panels the user can actually see — because the
+  // raw flags can be set while nothing is on screen to close, and an Esc spent
+  // on an invisible panel reads as a dead key. The same reason gates \ and F on
+  // `wide`: below the breakpoint neither state exists, so the keys stay unbound
+  // rather than flipping a flag with no effect.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
@@ -335,8 +447,8 @@ export function Dashboard() {
       if (e.key === "Escape") {
         if (popover) setPopover(null);
         else if (placing) setPlacing(null);
-        else if (boardOpen) setBoardOpen(false);
-        else if (focusMode) setFocusMode(false);
+        else if (board) setBoardOpen(false);
+        else if (focused) setFocusMode(false);
         else if (selected) setSelected(null);
         else return;
         e.preventDefault();
@@ -346,15 +458,15 @@ export function Dashboard() {
       const layers: Mode[] = ["demand", "specialty", "share", "uncaptured", "primary"];
       const n = Number(e.key);
       if (n >= 1 && n <= 5) setMode(layers[n - 1]);
-      else if (e.key === "\\") setBoardOpen((v) => !v);
-      else if (e.key === "f" || e.key === "F") setFocusMode((v) => !v);
+      else if (wide && e.key === "\\") toggleBoard();
+      else if (wide && (e.key === "f" || e.key === "F")) toggleFocus();
       else if (e.key === "a" || e.key === "A") setPopover((v) => (v === "about" ? null : "about"));
       else return;
       e.preventDefault();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [popover, placing, boardOpen, focusMode, selected]);
+  }, [popover, placing, board, focused, selected, wide, toggleBoard, toggleFocus]);
 
   const dcs = useMemo(() => staticData?.dcs ?? [], [staticData]);
   // Derived rather than synced: the centre picker only exists past two centres,
@@ -370,7 +482,11 @@ export function Dashboard() {
     forecastDraft,
     onForecastDraft: setForecastDraft,
     onForecast,
-    forecast,
+    forecast: forecastRun?.value ?? null,
+    // The capacity that was in force when this forecast ran. The chart's cap
+    // rule and its y-scale belong to the bars beside them, not to a capacity
+    // stepper the user has moved since.
+    forecastCaps: forecastRun?.caps ?? null,
     forecasting,
     forecastView,
     onForecastView: setForecastView,
@@ -382,13 +498,6 @@ export function Dashboard() {
     onPopover: setPopover,
     visibleMeters: roomy && tall ? 3 : 2,
   };
-
-  // Both are desktop states: below 1000px the frame is a stacked page with
-  // nothing to collapse, so they are simply not in effect there.
-  const focused = focusMode && wide;
-  // Board mode reveals the deck's folded rows, and focus mode has no deck, so
-  // the two are never in effect together.
-  const board = boardOpen && wide && !focused;
 
   // The board is an overlay, not a modal — the rails and the deck under it stay
   // live — so nothing is trapped. But a keyboard user who opens it must not have
@@ -429,9 +538,9 @@ export function Dashboard() {
           onExport={onExport}
           ready={!!shown}
           boardOpen={board}
-          onBoard={() => setBoardOpen((v) => !v)}
+          onBoard={toggleBoard}
           focusMode={focused}
-          onFocus={() => setFocusMode((v) => !v)}
+          onFocus={toggleFocus}
           onJumpToWorstMeter={jumpToWorstMeter}
           popover={popover}
           onPopover={setPopover}
@@ -517,7 +626,7 @@ export function Dashboard() {
           budget={budget}
           onBudget={setBudget}
           onPlan={onPlan}
-          plan={plan}
+          plan={planShown}
           planning={planning}
           onJumpToWorstMeter={jumpToWorstMeter}
         />

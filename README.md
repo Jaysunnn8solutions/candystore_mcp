@@ -28,7 +28,9 @@ Two kinds of store matter because two kinds of customer do. Neighbourhoods with 
 - **Uncaptured**: spend we don't reach, which is where a new store would draw from.
 - **Trade areas**: which of our stores each tract mostly shops at.
 
-Stores, distribution centers and competitors are markers. Pick a store type and click the map to open one; tick an existing store to close it; scale a center's capacity; press "Plan the expansion" with a budget; press "Forecast orders" for the supplier table. The URL carries all of it, "Copy settings for Claude" puts it on the clipboard as tool arguments, and `load_view` reads it back on the server.
+Four regions frame the map. The outcome bar across the top keeps the demand funnel — what the market spends, what our stores capture, and where the rest goes — beside the scenario chip and the share buttons. The lens rail on the left picks the layer and the heritage segment, and searches for a place. The decision rail on the right holds the store roster and the expansion plan. The supply deck along the bottom holds each center's capacity meters and the forecast, over a strip carrying the nine model assumptions. Clicking a tract opens a card over the map; nothing else moves.
+
+Stores, distribution centers and competitors are markers. Press "Add general" or "Add specialty" and click the map to open a store; the power button on a store's row closes or reopens it; a center's capacity is a × factor per category in the deck; "Plan the expansion" runs the optimizer against a budget; "Run forecast" fills the supplier chart and the weekly table. On a wide screen "⊞ All" takes the map's place to show every capacity category and that table at once, and the ⛶ button collapses the rails and the deck to a one-line ribbon over the map. The URL carries the layer, the assumptions and the scenario; "Copy for Claude" puts the same state on the clipboard as tool arguments, and `load_view` reads it back on the server.
 
 ---
 
@@ -107,17 +109,18 @@ The B05006 region cells are resolved by label from the table definition at pipel
 ## Architecture
 
 ```
-pipeline/        tracts + places, ACS with heritage segments and the 2010→2020 crosswalk, competitors
-data/            committed outputs plus mock stores and distribution centers
-lib/spatial/     haversine distance, seeded PRNG, small stats helpers
-lib/model/       demand, gravity, market, optimizer, simulate, params
-lib/tools/       MCP tools, prompts, resources, one registration for both transports
-lib/render/      the self-contained HTML map
-lib/view-state   URL hash encoding shared by browser and server
-app/api/         tracts, static, market, sites, forecast, geocode
-app/mcp/         remote MCP endpoint (mcp-handler)
-mcp/stdio.ts     local MCP server (StdioServerTransport) + render_map
-components/      Leaflet map, sidebar, legend
+pipeline/         tracts + places, ACS with heritage segments and the 2010→2020 crosswalk, competitors
+data/             committed outputs plus mock stores and distribution centers
+lib/spatial/      haversine distance, seeded PRNG, small stats helpers
+lib/model/        demand, gravity, market, optimizer, simulate, params
+lib/tools/        MCP tools, prompts, resources, one registration for both transports
+lib/render/       the self-contained HTML map
+lib/view-state    URL hash encoding shared by browser and server
+app/api/          tracts, static, market, sites, forecast, geocode
+app/mcp/          remote MCP endpoint (mcp-handler)
+mcp/stdio.ts      local MCP server (StdioServerTransport) + render_map
+components/       Leaflet map, legend, map overlays, colour scales, the dashboard that owns the state
+components/frame/ the four regions — outcome bar, lens rail, decision rail, supply deck — and their widgets
 ```
 
 ---
