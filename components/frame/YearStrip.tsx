@@ -87,7 +87,12 @@ export function YearStrip({ startWeek, weeks, onStartWeek, readOnly }: { startWe
               title={`${m} — start at week ${MONTH_START_WEEK[i]}`}
               onClick={() => onStartWeek(MONTH_START_WEEK[i])}
             >
-              {m[0]}
+              {/* The glyph carries its own ground. The ticks are drawn behind
+                  these buttons, and the tall season ticks land on exactly the
+                  months a candy buyer reads first — O, N and D sat with a
+                  bright 14px rule through them. The chip is only as wide as the
+                  letter, so the ruler still reads as a ruler between them. */}
+              <span>{m[0]}</span>
             </button>
           ))}
         </div>

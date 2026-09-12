@@ -67,6 +67,8 @@ const TILES = {
 };
 const ATTRIBUTION = "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
+/** How many trade areas carry a name on the map itself. The legend names them all. */
+const MAX_AREA_LABELS = 6;
 
 function subscribeDark(onChange: () => void) {
   const mq = window.matchMedia(DARK_QUERY);
@@ -143,6 +145,28 @@ export default function MarketMap(props: Props) {
   }, [result, segment]);
 
   const layerKey = `${mode}-${segment}-${version}-${selected ?? ""}-${stores.length}`;
+
+  /**
+   * Which stores earn a permanent label in Trade areas. Leaflet tooltips do no
+   * collision avoidance, so one label per store is only readable while the
+   * chain is small — and the sidebar's default $10M plan opens ten more, which
+   * piled fifteen labels on top of each other over central Atlanta.
+   *
+   * Direct labels are selective by rule: the biggest trade areas get named on
+   * the map, and the legend carries every store, so identity is never lost —
+   * only repeated. Ties break by id so the set cannot flicker between renders.
+   */
+  const labelled = useMemo(() => {
+    if (mode !== "primary") return new Set<string>();
+    const won = new Map<string, number>();
+    for (const t of result?.tracts ?? []) {
+      if (t.primaryStore) won.set(t.primaryStore, (won.get(t.primaryStore) ?? 0) + 1);
+    }
+    const ranked = stores
+      .filter((s) => (won.get(s.id) ?? 0) > 0)
+      .sort((a, b) => (won.get(b.id) ?? 0) - (won.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+    return new Set(ranked.slice(0, MAX_AREA_LABELS).map((s) => s.id));
+  }, [mode, result, stores]);
 
   const style = useMemo(
     () =>
@@ -238,10 +262,12 @@ export default function MarketMap(props: Props) {
       })}
       {/* Direct labels for the trade areas, on an anchor of their own so the
           store marker keeps its hover tooltip. Only in this layer: elsewhere
-          the fill means demand, not identity, and six permanent labels would
-          be noise. */}
-      {mode === "primary" &&
-        stores.map((s) => (
+          the fill means demand, not identity, and permanent labels would be
+          noise. Only the largest few areas, because Leaflet does not move a
+          label out of another one's way — see `labelled` above. */}
+      {stores
+        .filter((s) => labelled.has(s.id))
+        .map((s) => (
           <CircleMarker key={`label-${s.id}`} center={[s.lat, s.lon]} radius={1} interactive={false} pathOptions={{ opacity: 0, fillOpacity: 0 }}>
             <Tooltip direction="bottom" offset={[0, 8]} permanent className={styles.areaLabel}>{s.name}</Tooltip>
           </CircleMarker>

@@ -297,14 +297,33 @@
   inset: -2px 0 0;
 }
 
+/* Only the glyph gets the ground, not the whole cell: a full-width chip on
+   twelve buttons would paint over the ruler it is standing on. */
+.rulerCells button span {
+  display: inline-block;
+  padding: 0 3px;
+  border-radius: 3px;
+  /* --deck, because .forecastControls paints nothing of its own and the deck
+     is what shows through. --surface here would be a near-miss rectangle. */
+  background: var(--deck);
+}
+
 .rulerCells button:hover {
   background: var(--hover);
+}
+
+.rulerCells button:hover span {
+  background: transparent;
 }
 
 .rulerCells button[aria-checked="true"] {
   background: var(--text-primary);
   color: var(--surface);
   font-weight: 700;
+}
+
+.rulerCells button[aria-checked="true"] span {
+  background: transparent;
 }
 
 .rulerKeys {

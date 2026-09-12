@@ -56,13 +56,28 @@ export function Stepper({ id, label, value, onChange, min, max, step, prefix, su
   const [lastValue, setLastValue] = useState(value);
   const held = useRef<{ delay?: number; tick?: number }>({});
 
+  /*
+   * True between focus and blur. While the field is being typed into, the
+   * committed value must not rewrite the text.
+   *
+   * It did, and that silently changed what the user asked for. Every keystroke
+   * commits, and the commit fed a re-render that reformatted the field to the
+   * step's precision: typing "0.5" into a 0.1-step capacity stepper went "0" →
+   * committed 0 → text forced to "0.0" → the rest of the keystrokes landed in a
+   * field that was no longer what the user was typing, and the box settled on
+   * 0.1. A scenario five times more severe than the one asked for, written
+   * into the URL and into the settings block copied for Claude, with nothing
+   * on screen to say so.
+   */
+  const [editing, setEditing] = useState(false);
+
   // The committed value is the source of truth; the local text only exists so a
   // field can be cleared and retyped without snapping back on every keystroke.
   // Adjusted during render rather than in an effect, so the input never paints
   // one frame showing the value it just moved away from.
   if (value !== lastValue) {
     setLastValue(value);
-    setText(value.toFixed(decimals));
+    if (!editing) setText(value.toFixed(decimals));
   }
 
   // A press-and-hold interval outlives the render that started it, so it must
@@ -87,6 +102,10 @@ export function Stepper({ id, label, value, onChange, min, max, step, prefix, su
   };
 
   const bump = (dir: 1 | -1) => {
+    // The buttons preventDefault so the field keeps focus, which would leave
+    // `editing` true and freeze the text at whatever was typed before. A bump
+    // is the value talking, not the keyboard, so it hands the text back.
+    setEditing(false);
     const next = clamp(live.current.value + dir * step);
     // At the bound the held interval would otherwise spin forever writing the
     // value it already has.
@@ -138,12 +157,17 @@ export function Stepper({ id, label, value, onChange, min, max, step, prefix, su
         step={step}
         value={text}
         disabled={disabled}
+        onFocus={() => setEditing(true)}
         onChange={(e) => {
+          setEditing(true);
           setText(e.target.value);
           const n = Number(e.target.value);
           if (e.target.value.trim() !== "" && Number.isFinite(n)) onChange(clamp(n));
         }}
-        onBlur={() => setText(value.toFixed(decimals))}
+        onBlur={() => {
+          setEditing(false);
+          setText(value.toFixed(decimals));
+        }}
       />
       {suffix && <span className={styles.affix}>{suffix}</span>}
       {btn(1)}
