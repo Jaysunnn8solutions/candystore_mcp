@@ -234,7 +234,7 @@
 /*
  * The switch is the only element in the row that names what the number applies
  * to, so it is the last thing squeezed, not the first: at 1024px it used to
- * clip to "Ge…" and "S…", leaving the colour dot to carry the meaning. It gets
+ * clip to "Ge…" and "S…", leaving the color dot to carry the meaning. It gets
  * a floor wide enough for "Specialty" and the stepper gives up the width — it
  * is showing three digits.
  */

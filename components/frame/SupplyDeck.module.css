@@ -24,7 +24,7 @@
   overflow: hidden;
 }
 
-/* Three or more centres is a data change, not a code change, so it must not be
+/* Three or more centers is a data change, not a code change, so it must not be
    able to break the layout: past two they share one card behind a picker. */
 .deckTop[data-many="true"] {
   grid-template-columns: 216px minmax(0, 1fr);
@@ -374,8 +374,8 @@
   padding-top: 12px;
 }
 
-/* The label column holds the longest centre name rather than ellipsising it:
-   it is what attributes a cap annotation to the right centre, and the plot has
+/* The label column holds the longest center name rather than ellipsising it:
+   it is what attributes a cap annotation to the right center, and the plot has
    ~700px to give 26 of them up from. */
 .facet,
 .lostStrip,
@@ -503,7 +503,7 @@
 
 /* One hue, whatever the week does against the cap. This used to repaint itself
    in --over when the peak crossed the cap rule, which is the swatch the legend
-   beside it gives to "lost" — one colour with two meanings inside one figure.
+   beside it gives to "lost" — one color with two meanings inside one figure.
    The cap rule the bar crosses is the honest signal and is already drawn. */
 .head {
   background: var(--fill-soft);

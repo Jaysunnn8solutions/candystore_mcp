@@ -8,8 +8,8 @@ import styles from "./SupplyDeck.module.css";
 import w from "./Widgets.module.css";
 
 /**
- * Weekly supplier orders, one facet per distribution centre. Facets rather than
- * a stack of two centres because the model's binding constraint is a per-DC
+ * Weekly supplier orders, one facet per distribution center. Facets rather than
+ * a stack of two centers because the model's binding constraint is a per-DC
  * capacity, and a per-DC rule cannot be drawn across a stack. Both facets share
  * one scale, so no second axis and no misread comparison.
  *
@@ -85,7 +85,7 @@ export function ForecastFacets({ forecast, dcs, capacityByDc, compact }: { forec
                       <span key={wk.week} className={styles.col} data-hover={i === hover ? "true" : undefined}>
                         {/* Over-cap peaks used to repaint this segment in
                             --over, which is the swatch the legend below gives
-                            to "lost" — one colour, two meanings, in one figure.
+                            to "lost" — one color, two meanings, in one figure.
                             The cap rule is already drawn and a peak crossing it
                             is the honest signal, so the headroom keeps its own
                             hue and --over means lost revenue and nothing else. */}

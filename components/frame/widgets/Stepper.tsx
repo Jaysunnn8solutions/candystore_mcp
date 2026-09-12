@@ -7,7 +7,7 @@ interface Props {
   id: string;
   /**
    * Names the −/+ buttons, which have no visible text of their own, and the
-   * field itself unless `labelled` says a visible label already does.
+   * field itself unless `labeled` says a visible label already does.
    */
   label: string;
   value: number;
@@ -37,7 +37,7 @@ interface Props {
    * own value ("textbox 1.5"). With it the visible words stay the name, because
    * a name that does not contain them breaks speech input (SC 2.5.3).
    */
-  labelled?: boolean;
+  labeled?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -48,7 +48,7 @@ function decimalsOf(step: number): number {
   return i < 0 ? 0 : s.length - i - 1;
 }
 
-export function Stepper({ id, label, value, onChange, min, max, step, prefix, suffix, size = "md", big, detent, neutral, labelled, disabled, className }: Props) {
+export function Stepper({ id, label, value, onChange, min, max, step, prefix, suffix, size = "md", big, detent, neutral, labeled, disabled, className }: Props) {
   const decimals = decimalsOf(step);
   // Kept at the step's own precision, so a capacity override reads "x1.0"
   // rather than "x1" and the no-override point is unambiguous.
@@ -150,7 +150,7 @@ export function Stepper({ id, label, value, onChange, min, max, step, prefix, su
         id={id}
         className={styles.stepInput}
         type="number"
-        aria-label={labelled ? undefined : label}
+        aria-label={labeled ? undefined : label}
         inputMode="decimal"
         min={min}
         max={max}

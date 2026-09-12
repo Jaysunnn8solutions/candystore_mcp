@@ -53,7 +53,7 @@ async function resolveHeritageCodes(vintage: number): Promise<Record<string, str
         byLabel.get(label) ??
         byLabel.get(`Americas:!!${label}`) ??
         [...byLabel.entries()].find(([l]) => l.endsWith(label))?.[1];
-      if (!code) throw new Error(`B05006 ${vintage}: no cell labelled "${label}"`);
+      if (!code) throw new Error(`B05006 ${vintage}: no cell labeled "${label}"`);
       return code;
     });
   }

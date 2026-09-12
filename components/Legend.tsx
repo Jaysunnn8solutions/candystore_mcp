@@ -9,7 +9,7 @@ interface Props {
   mode: Mode;
   breaks: number[];
   stores: Store[];
-  /** Store id → colour, assigned over the whole roster so a closure cannot reshuffle it. */
+  /** Store id → color, assigned over the whole roster so a closure cannot reshuffle it. */
   storeSlots: Map<string, string>;
   showCompetitors: boolean;
   onShowCompetitors: (v: boolean) => void;
@@ -27,11 +27,11 @@ export function Legend({ mode, breaks, stores, storeSlots, showCompetitors, onSh
 
   if (compact) {
     // Named from MODES, and only the sequential layers are a scale: Trade areas
-    // is one colour per store and Our share is banded, so calling either a
+    // is one color per store and Our share is banded, so calling either a
     // light-to-dark ramp would describe a form the map does not have.
     const label = MODES.find((m) => m.id === mode)?.label ?? mode;
     const shape =
-      mode === "primary" ? "one colour per store" : mode === "share" ? "five share bands, light to dark" : "scale, light to dark";
+      mode === "primary" ? "one color per store" : mode === "share" ? "five share bands, light to dark" : "scale, light to dark";
     return (
       <div className={styles.legend}>
         <div className={styles.ramp} role="img" aria-label={`${label}: ${shape}. Expand the legend for the values.`}>

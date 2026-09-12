@@ -16,7 +16,7 @@ The company is fictional. The demographics, boundaries and competitors are real.
 
 A chain runs four general candy stores and one specialty store on Buford Highway. It has capital to expand, two distribution centers, and suppliers who ship plenty of traditional candy but only a little of the imported kinds. Where should the next stores go, should they be general or specialty, and what should the buyers order for the next six months?
 
-Two kinds of store matter because two kinds of customer do. Neighbourhoods with a large foreign-born population from one region want candy familiar from home, and a general store stocked for the average American shopper doesn't serve them. Putting both ranges in one store dilutes each; the model treats them as separate layers that can sit near each other.
+Two kinds of store matter because two kinds of customer do. Neighborhoods with a large foreign-born population from one region want candy familiar from home, and a general store stocked for the average American shopper doesn't serve them. Putting both ranges in one store dilutes each; the model treats them as separate layers that can sit near each other.
 
 ---
 
@@ -91,7 +91,7 @@ Then ask: *"Plan a $10M expansion, forecast the orders, and render the map."* Th
 
 ## Data
 
-| Source | Used for | Licence |
+| Source | Used for | License |
 |---|---|---|
 | Census cartographic boundaries 2024 | Tracts, and the place covering most of each tract | Public domain |
 | ACS 5-year 2024 | Population, households, income, children, foreign-born by region (B05006) | Public domain |
@@ -119,7 +119,7 @@ lib/view-state    URL hash encoding shared by browser and server
 app/api/          tracts, static, market, sites, forecast, geocode
 app/mcp/          remote MCP endpoint (mcp-handler)
 mcp/stdio.ts      local MCP server (StdioServerTransport) + render_map
-components/       Leaflet map, legend, map overlays, colour scales, the dashboard that owns the state
+components/       Leaflet map, legend, map overlays, color scales, the dashboard that owns the state
 components/frame/ the four regions — outcome bar, lens rail, decision rail, supply deck — and their widgets
 ```
 

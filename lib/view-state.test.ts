@@ -73,7 +73,7 @@ describe("scenario stores through the hash", () => {
   });
 
   // The server ids an added store by its position in the `add` array it is
-  // sent, so a store that survives a dropped neighbour has to be ided by how
+  // sent, so a store that survives a dropped neighbor has to be ided by how
   // many were kept, not by where it sat in the link.
   it("ids the surviving store by the count kept, not its place in the hash", () => {
     const v = parseViewHash("scn=coffee@33.95,-84.16@1@latam|general@33.93012,-84.32587@1@");
@@ -132,6 +132,31 @@ describe("a link the model cannot use", () => {
     expect(dropped).toEqual([expect.stringContaining("baseSpend")]);
   });
 
+  /*
+   * "specialty" is the word a person reaches for, and it is not a category —
+   * the wildcard is "specialty:*". Carrying it made every later request fail
+   * server-side, the forecast included, with no way back but editing the URL.
+   */
+  it("drops a capacity change naming a category the model does not have", () => {
+    const { view: v, dropped } = readViewHash("cap=dc-east:specialty=0");
+    expect(v.capacityScale).toEqual([]);
+    expect(dropped).toEqual([expect.stringContaining("specialty")]);
+  });
+
+  it("keeps the categories the model does have, wildcards included", () => {
+    const hash = "cap=dc-east:specialty:*=0.5|dc-west:traditional=2|dc-east:specialty:latam=0|dc-west:*=1.5";
+    const { view: v, dropped } = readViewHash(hash);
+    expect(v.capacityScale.map((c) => c.category)).toEqual(["specialty:*", "traditional", "specialty:latam", "*"]);
+    expect(dropped).toEqual([]);
+  });
+
+  it("keeps the good half of a link whose capacity category is wrong", () => {
+    const { view: v, dropped } = readViewHash("mode=share&cap=dc-east:sweets=0.5|dc-west:traditional=0.5");
+    expect(v.mode).toBe("share");
+    expect(v.capacityScale).toEqual([{ dc: "dc-west", category: "traditional", factor: 0.5 }]);
+    expect(dropped).toHaveLength(1);
+  });
+
   it("has nothing to report about a link it can use whole", () => {
     expect(readViewHash("mode=share&scn=general@33.93012,-84.32587@1@").dropped).toEqual([]);
   });
@@ -183,12 +208,12 @@ describe("the rest of the view", () => {
     expect(back.showCompetitors).toBe(false);
   });
 
-  it("rejects a segment id it does not recognise", () => {
+  it("rejects a segment id it does not recognize", () => {
     expect(parseViewHash("mode=specialty&seg=<script>notasegment").segment).toBe(DEFAULT_VIEW.segment);
     expect(parseViewHash("mode=specialty&seg=eastasia").segment).toBe("eastasia");
   });
 
-  it("rejects a mode, a tract id and a capacity scale it does not recognise", () => {
+  it("rejects a mode, a tract id and a capacity scale it does not recognize", () => {
     const v = parseViewHash("mode=profit&sel=99999999999&cap=dc-east:traditional=x");
     expect(v.mode).toBe(DEFAULT_VIEW.mode);
     expect(v.selected).toBeNull();

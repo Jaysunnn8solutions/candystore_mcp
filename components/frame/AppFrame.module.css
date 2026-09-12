@@ -2,7 +2,7 @@
  * Four-edge frame: outcome bar across the top, a lens rail and a decision rail
  * down the sides, a supply deck along the bottom, and the map in the middle.
  * Every breakpoint is four custom properties and, once, one areas string, so no
- * region ever remounts and Leaflet is never re-initialised.
+ * region ever remounts and Leaflet is never re-initialized.
  */
 
 .app {

@@ -7,10 +7,10 @@ const WORDS = { ok: "", tight: "approaching capacity", over: "over capacity" } a
 const PILLS = { ok: null, tight: "TIGHT", over: "CAPPED" } as const;
 
 /**
- * The figure a meter prints. Demand against no capacity is not a utilisation,
+ * The figure a meter prints. Demand against no capacity is not a utilization,
  * so that state gets a word rather than a number — utilization() in scales.ts
  * is the same rule in the sentence a screen reader hears. Exported because the
- * disclosure that folds meters away summarises its worst row, and the two must
+ * disclosure that folds meters away summarizes its worst row, and the two must
  * not describe one row differently.
  */
 export function meterFigure(demand: number, capacity: number): string {
@@ -19,15 +19,15 @@ export function meterFigure(demand: number, capacity: number): string {
 
 /**
  * Demand against a weekly capacity. Severity carries three signals at once —
- * fill colour, a mark, and a word — because a hairline alone fails on a dark
- * recessed surface and colour alone fails for anyone who cannot see it.
+ * fill color, a mark, and a word — because a hairline alone fails on a dark
+ * recessed surface and color alone fails for anyone who cannot see it.
  */
 export function Meter({ name, demand, capacity, id }: { name: string; demand: number; capacity: number; id?: string }) {
   const level = meterLevel(demand, capacity);
-  // The ratio was `capacity > 0 ? demand / capacity : 1`, so a centre stepped
+  // The ratio was `capacity > 0 ? demand / capacity : 1`, so a center stepped
   // down to ×0 printed exactly "100%" with a full bar — the fully-used reading
   // of the one state where nothing ships at all, and the opposite of what the
-  // map tooltip says about the same centre. No capacity, no ratio: the bar is
+  // map tooltip says about the same center. No capacity, no ratio: the bar is
   // empty and the figure is a word.
   const has = capacity > 0;
   const used = has ? demand / capacity : 0;

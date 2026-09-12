@@ -17,7 +17,7 @@
      and 13px/650 is not WCAG large text, so the button darkens rather than the
      label lightening: BLUE[3] measures 6.6:1 with #fff in both themes. */
   --accent-strong: #1c5cab;
-  /* Warning state. Not DC yellow (that is a centre's identity) and not --over
+  /* Warning state. Not DC yellow (that is a center's identity) and not --over
      (that is a breach, not a watch): ORANGE[3], which clears #fff at 5.2:1. */
   --warn: #b84a1f;
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -33,7 +33,7 @@
   --fill: #1c5cab;
   --fill-soft: #86b6ef;
   --fill-track: #cde2fb;
-  /* The funnel's residual class. --fill-track is the right colour for an
+  /* The funnel's residual class. --fill-track is the right color for an
      unfilled meter track — invisible is the point there — but "not in reach" is
      93% of the headline bar and measured 1.20:1 against the bar's own white
      ground. One step darker on the same ramp: 2.11:1 on --elev, and still

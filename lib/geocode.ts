@@ -1,6 +1,6 @@
 /**
  * Place search for the study area. Nominatim (OpenStreetMap) handles
- * neighbourhoods, stations and landmarks; the Census Bureau geocoder is
+ * neighborhoods, stations and landmarks; the Census Bureau geocoder is
  * the fallback for street addresses Nominatim misses. Both are free and
  * keyless. Results are cached per process and requests carry an
  * identifying user agent, as both services' usage policies ask.

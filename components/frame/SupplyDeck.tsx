@@ -36,7 +36,7 @@ interface Props {
   onForecast: (r: ForecastRequest) => Promise<void>;
   forecast: SimulationResult | null;
   /**
-   * Total weekly capacity per centre as it stood when that forecast ran, null
+   * Total weekly capacity per center as it stood when that forecast ran, null
    * until one has. The chart's bars only move when a run completes, so its cap
    * rule and its scale have to come from the same moment — see capsFor().
    */
@@ -150,9 +150,9 @@ export function SupplyDeck(p: Props) {
                   long form the ± buttons want does not contain the words on
                   screen, and a name that omits them is unsayable. */}
               <label htmlFor="fc-start">from week</label>
-              <Stepper id="fc-start" label="starting calendar week" value={p.forecastDraft.startWeek} onChange={(v) => p.onForecastDraft({ ...p.forecastDraft, startWeek: v })} min={1} max={52} step={1} size="sm" labelled />
+              <Stepper id="fc-start" label="starting calendar week" value={p.forecastDraft.startWeek} onChange={(v) => p.onForecastDraft({ ...p.forecastDraft, startWeek: v })} min={1} max={52} step={1} size="sm" labeled />
               <label htmlFor="fc-outage">outage / wk</label>
-              <Stepper id="fc-outage" label="weekly outage probability in percent" value={p.forecastDraft.outage} onChange={(v) => p.onForecastDraft({ ...p.forecastDraft, outage: v })} min={0} max={50} step={1} suffix="%" size="sm" labelled />
+              <Stepper id="fc-outage" label="weekly outage probability in percent" value={p.forecastDraft.outage} onChange={(v) => p.onForecastDraft({ ...p.forecastDraft, outage: v })} min={0} max={50} step={1} suffix="%" size="sm" labeled />
             </div>
             <div className={styles.fcRow}>
               <button
@@ -181,7 +181,7 @@ export function SupplyDeck(p: Props) {
  * forecast completes, so reading the live result instead rescaled the whole
  * chart under old bars on the next capacity edit — a ×2.0 stepper turned a
  * capped simulation into comfortable headroom without touching a bar. Falls
- * back to the live figure for a centre the recorded run does not name.
+ * back to the live figure for a center the recorded run does not name.
  */
 function capsFor(dcs: DistributionCenter[], result: MarketResult | null, ran: Record<string, number> | null | undefined): Record<string, number> {
   return Object.fromEntries(
@@ -199,11 +199,11 @@ function ForecastPanel(p: Props) {
     return (
       <div className={styles.forecastPanel}>
         <p className={styles.empty}>
-          Not run · {p.forecastDraft.weeks} weeks from week {p.forecastDraft.startWeek} ({startMonth}), {p.forecastDraft.outage}% chance a centre goes out in any week.
+          Not run · {p.forecastDraft.weeks} weeks from week {p.forecastDraft.startWeek} ({startMonth}), {p.forecastDraft.outage}% chance a center goes out in any week.
         </p>
         <YearStrip startWeek={p.forecastDraft.startWeek} weeks={p.forecastDraft.weeks} readOnly />
         <p className={styles.empty}>
-          Run to see mean and peak weekly orders per centre against each centre&apos;s cap, and what outages and caps are
+          Run to see mean and peak weekly orders per center against each center&apos;s cap, and what outages and caps are
           expected to cost. Weeks 42–44 are the Halloween run-up; 49–52 Christmas.
         </p>
       </div>
@@ -405,9 +405,9 @@ export function DcCard({ dc, rows, capacityScale, onCapacityScale, popover, onPo
               type="button"
               className={w.iconBtn}
               aria-label={`Reset ${dc.name} capacity to normal`}
-              title="Reset this centre's capacity"
+              title="Reset this center's capacity"
               // Factor 1 is how the dashboard deletes an override, so this
-              // clears the centre out of the URL for free.
+              // clears the center out of the URL for free.
               onClick={() => overrides.forEach((c) => onCapacityScale(dc.id, c.category, 1))}
             >
               ↺

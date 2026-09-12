@@ -141,7 +141,7 @@ export function DecisionRail(p: Props) {
         {shut.map((s) => row(s, "closed"))}
         {orphans.map((id) => (
           <li key={`gone-${id}`} className={styles.storeRow} data-closed="true">
-            {/* No type, so no type colour: the dot falls back to --muted. */}
+            {/* No type, so no type color: the dot falls back to --muted. */}
             <span className={`${w.dot} ${w.dotRing}`} aria-hidden />
             <span className={styles.storeName} title={`${id} — closed by the link, but no store with that id is in this data`}>{id}</span>
             <span className={styles.storeFig}>

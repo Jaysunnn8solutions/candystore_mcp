@@ -191,7 +191,7 @@ button.fig:hover {
 /* The gaps are this surface showing through, never a stroke — and now that
    --reach clears the ground on its own, neither is the outline: the inset
    hairline this track used to carry was drawn over the outer edge of the marks
-   themselves to make a 1.2:1 segment visible. Fixing the colour retires it. */
+   themselves to make a 1.2:1 segment visible. Fixing the color retires it. */
 .track {
   display: flex;
   gap: 2px;

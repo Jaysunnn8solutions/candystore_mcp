@@ -41,7 +41,7 @@ export function renderMapHtml(result: MarketResult, overrides: ScenarioOverrides
   const storeResults = new Map(result.stores.map((s) => [s.id, s]));
   const byGeoid = new Map(result.tracts.map((t) => [t.geoid, t]));
 
-  // Slim payload: geometry plus the few numbers the page colours by.
+  // Slim payload: geometry plus the few numbers the page colors by.
   const features = tracts.features.map((f) => {
     const p = f.properties;
     const t = byGeoid.get(p.geoid)!;

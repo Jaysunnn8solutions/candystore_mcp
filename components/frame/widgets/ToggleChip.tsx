@@ -4,9 +4,9 @@ import type { CSSProperties } from "react";
 import styles from "../Widgets.module.css";
 
 /**
- * A switch whose swatch carries the colour it governs, so the control sits on
- * the meaning it changes. Off is a ring with a transparent centre and no check;
- * on is a filled swatch plus a check glyph. Three channels, never colour alone.
+ * A switch whose swatch carries the color it governs, so the control sits on
+ * the meaning it changes. Off is a ring with a transparent center and no check;
+ * on is a filled swatch plus a check glyph. Three channels, never color alone.
  */
 export function ToggleChip({ checked, onToggle, color, label, big }: { checked: boolean; onToggle: (v: boolean) => void; color?: string; label: string; big?: boolean }) {
   return (
@@ -36,7 +36,7 @@ export function AddStoreChip({ pressed, onPress, color, label }: { pressed: bool
 }
 
 /**
- * Open/closed for one store. Closed rows also grey out, strike through their
+ * Open/closed for one store. Closed rows also gray out, strike through their
  * name and sort under a divider, so the switch is never the only signal.
  */
 export function OpenSwitch({ closed, onToggle, name }: { closed: boolean; onToggle: () => void; name: string }) {

@@ -60,8 +60,8 @@ export async function buildTracts(): Promise<TractGeo[]> {
 
   // Place lookup: bbox prefilter, then the place holding more of the tract
   // than any other and more than the unincorporated remainder. A centroid
-  // test mislabels tracts whose centre of mass lands in a notch the city
-  // boundary leaves out, or across the line in a neighbouring place.
+  // test mislabels tracts whose center of mass lands in a notch the city
+  // boundary leaves out, or across the line in a neighboring place.
   const placeBoxes = places.features.map((f) => turf.bbox(f));
   const placeFor = (tract: Feature<Polygon | MultiPolygon>, county: string): string => {
     const tb = turf.bbox(tract);

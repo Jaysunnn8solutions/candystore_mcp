@@ -43,7 +43,7 @@ interface Props {
   segment: string;
   segmentLabels: Record<string, string>;
   stores: Store[];
-  /** Store id → trade-area colour, keyed to identity rather than list position. */
+  /** Store id → trade-area color, keyed to identity rather than list position. */
   storeSlots: Map<string, string>;
   dcs: DistributionCenter[];
   competitors: Competitor[];
@@ -156,7 +156,7 @@ export default function MarketMap(props: Props) {
    * the map, and the legend carries every store, so identity is never lost —
    * only repeated. Ties break by id so the set cannot flicker between renders.
    */
-  const labelled = useMemo(() => {
+  const labeled = useMemo(() => {
     if (mode !== "primary") return new Set<string>();
     const won = new Map<string, number>();
     for (const t of result?.tracts ?? []) {
@@ -264,9 +264,9 @@ export default function MarketMap(props: Props) {
           store marker keeps its hover tooltip. Only in this layer: elsewhere
           the fill means demand, not identity, and permanent labels would be
           noise. Only the largest few areas, because Leaflet does not move a
-          label out of another one's way — see `labelled` above. */}
+          label out of another one's way — see `labeled` above. */}
       {stores
-        .filter((s) => labelled.has(s.id))
+        .filter((s) => labeled.has(s.id))
         .map((s) => (
           <CircleMarker key={`label-${s.id}`} center={[s.lat, s.lon]} radius={1} interactive={false} pathOptions={{ opacity: 0, fillOpacity: 0 }}>
             <Tooltip direction="bottom" offset={[0, 8]} permanent className={styles.areaLabel}>{s.name}</Tooltip>

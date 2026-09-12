@@ -241,7 +241,7 @@
  * No gap between rows. Seven radios at 24px is 168px whichever way it is spent,
  * and spending it on the rows themselves is the only arrangement where each one
  * really owns 24px: with a 2px gap the rows had to paint at 20px and reach into
- * the gap with a pseudo-element, and two neighbours reaching into the same 2px
+ * the gap with a pseudo-element, and two neighbors reaching into the same 2px
  * left each of them 22. The checked row's own background separates them.
  */
 .segList {

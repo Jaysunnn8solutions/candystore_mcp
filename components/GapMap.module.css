@@ -36,7 +36,7 @@
 
 /*
  * Trade areas name themselves on the map. Six categorical hues cannot both stay
- * separable under colour-vision deficiency and clear the dark basemap by 3:1,
+ * separable under color-vision deficiency and clear the dark basemap by 3:1,
  * so the palette carries a relief obligation: a polygon must have a route back
  * to its store that is not swatch-matching. This is that route, so it is only
  * in the one layer whose subject is which store an area belongs to.

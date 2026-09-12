@@ -1,4 +1,4 @@
-/** Colour scales and formatting for the map. */
+/** Color scales and formatting for the map. */
 
 import type { Mode } from "@/lib/view-state";
 export type { Mode };
@@ -49,9 +49,9 @@ function darken(hex: string, factor: number): string {
 }
 
 /**
- * One colour per store, by position. A plan can open more stores than there
+ * One color per store, by position. A plan can open more stores than there
  * are palette slots, so each further pass through them is darker than the
- * last: a repeated colour would put two store names on one legend swatch.
+ * last: a repeated color would put two store names on one legend swatch.
  * The factor shrinks without ever reaching zero, so no two passes match.
  */
 export function storeColor(i: number): string {
@@ -61,10 +61,10 @@ export function storeColor(i: number): string {
 }
 
 /**
- * Store id → colour, so the map and the legend cannot disagree.
+ * Store id → color, so the map and the legend cannot disagree.
  *
  * The roster passed in must be the whole one — closed stores included, in a
- * stable order — not the stores currently drawn. Colour follows the entity,
+ * stable order — not the stores currently drawn. Color follows the entity,
  * never its rank: when the slot came from a position in the visible list,
  * closing one store handed its hue to the next one down and every store after
  * it, so two screenshots of the same map before and after a closure meant
@@ -139,7 +139,7 @@ export type MeterLevel = "ok" | "tight" | "over";
  * disclosure summaries and the tooltips cannot disagree. Thresholds match the
  * ones the old sidebar expressed inline in a style attribute. The level names a
  * band; which token paints it is the stylesheet's business, so the severity
- * colours stay themeable.
+ * colors stay themeable.
  */
 export function meterLevel(demand: number, capacity: number): MeterLevel {
   if (capacity <= 0) return "over";

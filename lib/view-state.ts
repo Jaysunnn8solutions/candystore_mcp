@@ -38,6 +38,12 @@ const MODES = new Set<Mode>(["demand", "specialty", "share", "uncaptured", "prim
  * files off disk. They change only when the pipeline's segment list does.
  */
 const SEGMENT_IDS = new Set(["latam", "caribbean", "eastasia", "southasia", "mideast", "africa", "easteurope"]);
+/**
+ * Every category a capacity change may name: the one traditional line, each
+ * heritage market, and the two wildcards effectiveDcs matches. Derived from the
+ * segment ids above so the two cannot drift apart.
+ */
+const CAPACITY_CATEGORIES = new Set(["traditional", "*", "specialty:*", ...[...SEGMENT_IDS].map((s) => `specialty:${s}`)]);
 const PARAM_KEYS = [
   "baseSpend", "incomeElasticity", "childBoost", "criticalMass", "specialtyAffinity",
   "beta", "alpha", "maxKm", "outsideOption",
@@ -59,7 +65,7 @@ function defaultStoreName(type: StoreType): string {
  * "@" and "|" separate the fields of a scenario store and URLSearchParams
  * reads a "+" back as a space, so a name travels through the hash as the
  * characters that survive that round trip and nothing else. Applied on the
- * way in as well: a hand-edited link is not a licence to put arbitrary text
+ * way in as well: a hand-edited link is not a license to put arbitrary text
  * into a store name that other surfaces then print.
  */
 function safeName(name: string): string {
@@ -163,6 +169,21 @@ export function readViewHash(hash: string): ParsedView {
     const parsed = overridesSchema.shape.capacityScale.safeParse([entry]);
     if (!parsed.success) {
       dropped.push(`a capacity change outside the range the model accepts (${badFields(parsed.error.issues)})`);
+      continue;
+    }
+    /*
+     * The schema only asks for a string under 40 characters, so a category the
+     * model has never heard of used to be kept, sent, and rejected by the
+     * server on every request after it — including the forecast. One mistyped
+     * word in a link made the whole app unusable, with no way back but editing
+     * the URL by hand. It is a bad part of a link, like the others here, so it
+     * is dropped and named rather than carried.
+     *
+     * "specialty" is the one people reach for; the model spells the wildcard
+     * "specialty:*", and a single heritage market is "specialty:latam".
+     */
+    if (!CAPACITY_CATEGORIES.has(entry.category)) {
+      dropped.push(`a capacity change for "${entry.category}", which is not a category this model has (try "traditional", "specialty:*", or one market such as "specialty:latam")`);
       continue;
     }
     capacityScale.push(entry);

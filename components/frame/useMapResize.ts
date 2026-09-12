@@ -14,7 +14,7 @@ export function useMapResize(map: LeafletMap): void {
   useEffect(() => {
     const el = map.getContainer();
     let debounce: number | undefined;
-    // pan: true keeps the map's centre where it was. With pan: false Leaflet
+    // pan: true keeps the map's center where it was. With pan: false Leaflet
     // holds the top-left corner instead, so growing the container — which is
     // exactly what focus mode does — pushed the whole tract cluster into the
     // top-left quadrant and filled the rest with empty Georgia. The gesture

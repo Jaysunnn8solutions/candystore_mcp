@@ -21,7 +21,7 @@ import {
 export const searchPlaceConfig = {
   title: "Search a place",
   description:
-    "Geocode a neighbourhood, address or landmark in metro Atlanta and list the " +
+    "Geocode a neighborhood, address or landmark in metro Atlanta and list the " +
     "tracts around it with their candy demand and our capture.",
   inputSchema: z
     .object({

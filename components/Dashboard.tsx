@@ -84,7 +84,7 @@ function forecastKeyOf(inputs: string): string {
 }
 
 /**
- * Weekly capacity per centre, summed over categories, as the server computes it
+ * Weekly capacity per center, summed over categories, as the server computes it
  * — this mirrors effectiveDcs in lib/model/market.ts: base capacity times every
  * capacityScale factor that matches the category, wildcards included. Taken from
  * the overrides rather than from the market result on screen because that result
@@ -139,7 +139,7 @@ function useDebouncedFetch<T>(key: string | null, fetcher: (signal: AbortSignal)
   }, [key]);
 }
 
-/** Tracks a media query, so a breakpoint can gate behaviour and not only CSS. */
+/** Tracks a media query, so a breakpoint can gate behavior and not only CSS. */
 function useMediaQuery(query: string): boolean {
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -206,7 +206,7 @@ export function Dashboard() {
 
   const wide = useMediaQuery("(min-width: 1000px)");
   const roomy = useMediaQuery("(min-width: 1101px)");
-  // A short window cuts the deck, so a third meter row per centre would not fit.
+  // A short window cuts the deck, so a third meter row per center would not fit.
   const tall = useMediaQuery("(min-height: 761px)");
 
   const scenarioActive = scenario.length > 0 || closed.length > 0 || capacityScale.length > 0;
@@ -218,16 +218,16 @@ export function Dashboard() {
   }, [mode, segment, params, scenario, closed, capacityScale, selected, showCompetitors]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     Promise.all([getJson<TractCollection>(`/api/tracts?v=${API_VERSION}`), getJson<StaticData>(`/api/static?v=${API_VERSION}`)])
       .then(([t, s]) => {
-        if (cancelled) return;
+        if (canceled) return;
         setTracts(t);
         setStaticData(s);
       })
-      .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => !canceled && setError(e instanceof Error ? e.message : String(e)));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, []);
 
@@ -288,7 +288,7 @@ export function Dashboard() {
     const base = (staticData?.stores ?? []).filter((s) => !closed.includes(s.id));
     return [...base, ...scenario];
   }, [staticData, closed, scenario]);
-  // Trade-area colours are assigned over every store the data knows about,
+  // Trade-area colors are assigned over every store the data knows about,
   // closed ones included, so a closure does not renumber the survivors. Built
   // here rather than inside the map and the legend, so the two cannot disagree.
   const storeSlots = useMemo(() => storeColors([...(staticData?.stores ?? []), ...scenario]), [staticData, scenario]);
@@ -480,7 +480,7 @@ export function Dashboard() {
   }, [popover, placing, board, focused, selected, wide, toggleBoard, toggleFocus]);
 
   const dcs = useMemo(() => staticData?.dcs ?? [], [staticData]);
-  // Derived rather than synced: the centre picker only exists past two centres,
+  // Derived rather than synced: the center picker only exists past two centers,
   // and a stale id from a data change resolves to the first one on the spot.
   const currentDc = dcs.some((d) => d.id === activeDc) ? activeDc : dcs[0]?.id ?? "";
 

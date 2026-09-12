@@ -3,7 +3,7 @@
 import { useEffect, type RefObject } from "react";
 
 /**
- * The no-scroll claim is arithmetic against two distribution centres, five
+ * The no-scroll claim is arithmetic against two distribution centers, five
  * stores and seven segments. A data change or a longer label can break it
  * silently, so in development the frame says so instead of just clipping.
  */
