@@ -9,6 +9,7 @@ import {
   scenarioShape,
   text,
   toolParamsShape,
+  utilization,
   type ScenarioArgs,
   type ToolParams,
   z,
@@ -26,11 +27,14 @@ export const storePerformanceConfig = {
 export function storePerformanceHandler({ add, remove, capacityScale, ...params }: ToolParams & ScenarioArgs) {
   const r = market(params, { add, remove, capacityScale });
   const lines = [
-    `Chain: ${money(r.totals.ourRevenue)}/yr revenue on ${money(r.totals.ourDemand)} captured demand (${pct(r.totals.ourShare)} of a ${money(r.totals.marketDemand)} market); ` +
-      `${money(r.totals.lostToCaps)} lost to supply caps.${describeScenario(resolveOverrides({ add, remove, capacityScale }))}`,
+    // ourShare is revenue over market demand, so it is post-cap: it has to be
+    // read against the revenue figure, not against captured demand.
+    `Chain: ${money(r.totals.ourRevenue)}/yr revenue on ${money(r.totals.ourDemand)} captured demand — that revenue is ` +
+      `${pct(r.totals.ourShare)} of the ${money(r.totals.marketDemand)} market, after supply caps; ` +
+      `${money(r.totals.lostToCaps)} lost to those caps.${describeScenario(resolveOverrides({ add, remove, capacityScale }))}`,
     ``,
     `## Stores`,
-    ...r.stores
+    ...[...r.stores]
       .sort((a, b) => b.revenue - a.revenue)
       .map(
         (s) =>
@@ -47,7 +51,7 @@ export function storePerformanceHandler({ add, remove, capacityScale, ...params 
       return (
         `- ${d.name} (${d.id}), ${d.stores.length} stores: ` +
         cats
-          .map((c) => `${categoryLabel(c)} ${money(d.weeklyDemand[c])}/wk of ${money(d.capacity[c] ?? 0)} (${pct(Math.min(1, d.weeklyDemand[c] / Math.max(1, d.capacity[c] ?? 0)))} used)`)
+          .map((c) => `${categoryLabel(c)} ${money(d.weeklyDemand[c])}/wk of ${money(d.capacity[c] ?? 0)} (${utilization(d.weeklyDemand[c], d.capacity[c] ?? 0)})`)
           .join("; ")
       );
     }),

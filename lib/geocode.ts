@@ -14,7 +14,7 @@ export interface GeoMatch {
   kind?: string;
 }
 
-const USER_AGENT = "atl-mcp/0.1 (+https://github.com/Jaysunnn8solutions/atl-mcp)";
+const USER_AGENT = "candystore-mcp/0.1 (+https://github.com/Jaysunnn8solutions/candystore_mcp)";
 const TIMEOUT_MS = 8000;
 /** Metro Atlanta, generously. left,top,right,bottom for Nominatim. */
 const VIEWBOX = "-85.0,34.3,-83.7,33.3";

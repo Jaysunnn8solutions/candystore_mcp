@@ -9,7 +9,7 @@ import type { DistributionCenter, MarketResult, ScenarioParams, Store, StoreType
 import { Legend } from "./Legend";
 import type { MapPoint } from "./MarketMap";
 import { ourShare } from "./MarketMap";
-import { MODES, STORE_TYPE_COLORS, fmtNum, money, pct, type Mode } from "./scales";
+import { MODES, STORE_TYPE_COLORS, fmtNum, money, pct, utilization, type Mode } from "./scales";
 import styles from "./Sidebar.module.css";
 
 export interface SelectedTract {
@@ -41,6 +41,8 @@ interface Props {
   onParams: (p: ScenarioParams) => void;
   result: MarketResult | null;
   baseline: MarketResult | null;
+  /** Whether `result` is the scenario's own run rather than the baseline. */
+  resultIsScenario: boolean;
   loading: boolean;
   stores: Store[];
   dcs: DistributionCenter[];
@@ -116,7 +118,17 @@ export function Sidebar(p: Props) {
       {p.selected ? (
         <TractCard sel={p.selected} labels={labels} stores={p.stores} onClose={p.onClearSelection} />
       ) : (
-        <Summary result={p.result} baseline={scenarioActive ? p.baseline : null} loading={p.loading} labels={labels} />
+        // While a scenario is recomputing the dashboard shows the baseline itself, and
+        // comparing that against the baseline is not a before and after. On first load
+        // the scenario can also arrive before any baseline exists to compare it to,
+        // which is a scenario result with no arrows rather than the market.
+        <Summary
+          result={p.result}
+          baseline={scenarioActive && p.resultIsScenario ? p.baseline : null}
+          isScenario={p.resultIsScenario}
+          loading={p.loading}
+          labels={labels}
+        />
       )}
 
       <section>
@@ -133,16 +145,20 @@ export function Sidebar(p: Props) {
         <ul className={styles.facilities}>
           {p.stores.map((s) => {
             const r = p.result?.stores.find((x) => x.id === s.id);
+            // A specialty store placed with no segments has them picked for it, so the result knows what it carries.
+            const segments = r?.segments ?? s.segments;
             return (
               <li key={s.id}>
                 {s.proposed ? (
                   <span className={styles.dot} style={{ background: STORE_TYPE_COLORS[s.type] }} />
                 ) : (
-                  <input type="checkbox" checked={p.closed.includes(s.id)} onChange={() => p.onToggleClosed(s.id)} aria-label={`Close ${s.name}`} title="Close this store" />
+                  // Closed stores are dropped from this list and shown below, so a
+                  // store that reaches this row is open by definition.
+                  <input type="checkbox" checked={false} onChange={() => p.onToggleClosed(s.id)} aria-label={`Close ${s.name}`} title="Close this store" />
                 )}
                 <span className={styles.facilityLabel}>
                   {s.name}
-                  <span className={styles.muted}> {s.type}{s.segments.length ? ` · ${s.segments.map((g) => labels[g] ?? g).join(", ")}` : ""}{r ? ` · ${money(r.revenue)}/yr` : ""}</span>
+                  <span className={styles.muted}> {s.type}{segments.length ? ` · ${segments.map((g) => labels[g] ?? g).join(", ")}` : ""}{r ? ` · ${money(r.revenue)}/yr` : ""}</span>
                 </span>
                 {s.proposed && (
                   <button className={styles.iconButton} onClick={() => p.onRemoveStore(s.id)} aria-label="Remove store">×</button>
@@ -150,12 +166,16 @@ export function Sidebar(p: Props) {
               </li>
             );
           })}
-          {p.closed.map((id) => (
-            <li key={`closed-${id}`}>
-              <input type="checkbox" checked onChange={() => p.onToggleClosed(id)} aria-label={`Reopen ${id}`} />
-              <span className={`${styles.facilityLabel} ${styles.muted}`}>closed: {id}</span>
-            </li>
-          ))}
+          {p.closed.map((id) => {
+            // The scenario result has no closed store to name it, so take the name from the baseline.
+            const name = p.baseline?.stores.find((x) => x.id === id)?.name ?? id;
+            return (
+              <li key={`closed-${id}`}>
+                <input type="checkbox" checked onChange={() => p.onToggleClosed(id)} aria-label={`Reopen ${name}`} />
+                <span className={`${styles.facilityLabel} ${styles.muted}`}>closed: {name}</span>
+              </li>
+            );
+          })}
         </ul>
         {scenarioActive && (
           <button className={styles.linkButton} onClick={p.onClearScenario}>Clear scenario</button>
@@ -222,7 +242,7 @@ function SearchBox({ onSearch, onGoTo }: { onSearch: (q: string) => Promise<GeoM
   );
 }
 
-function Summary({ result, baseline, loading, labels }: { result: MarketResult | null; baseline: MarketResult | null; loading: boolean; labels: Record<string, string> }) {
+function Summary({ result, baseline, isScenario, loading, labels }: { result: MarketResult | null; baseline: MarketResult | null; isScenario: boolean; loading: boolean; labels: Record<string, string> }) {
   if (!result) {
     return (
       <section><h2>The market</h2><p className={styles.blurb}>{loading ? "Computing…" : "No results."}</p></section>
@@ -232,11 +252,11 @@ function Summary({ result, baseline, loading, labels }: { result: MarketResult |
   const arrow = (a: number, b: number, f: (x: number) => string) => (baseline ? <span className={styles.muted}>{f(a)} → </span> : null);
   return (
     <section aria-busy={loading}>
-      <h2>{baseline ? "With your scenario" : "The market"}{loading && <span className={styles.spinner}>updating</span>}</h2>
+      <h2>{isScenario ? "With your scenario" : "The market"}{loading && <span className={styles.spinner}>updating</span>}</h2>
       <div className={styles.tiles}>
         <div className={styles.tile}><span className={styles.tileValue}>{money(t.marketDemand)}</span><span className={styles.tileLabel}>candy spend per year</span></div>
         <div className={styles.tile}><span className={styles.tileValue}>{arrow(baseline?.totals.ourRevenue ?? 0, t.ourRevenue, money)}{money(t.ourRevenue)}</span><span className={styles.tileLabel}>our revenue</span></div>
-        <div className={styles.tile}><span className={styles.tileValue}>{arrow(baseline?.totals.ourShare ?? 0, t.ourShare, pct)}{pct(t.ourShare)}</span><span className={styles.tileLabel}>our share</span></div>
+        <div className={styles.tile}><span className={styles.tileValue}>{arrow(baseline?.totals.ourShare ?? 0, t.ourShare, pct)}{pct(t.ourShare)}</span><span className={styles.tileLabel}>share of spend we sell</span></div>
       </div>
       {t.lostToCaps > 1000 && <p className={styles.blurb}>{money(t.lostToCaps)} a year of captured demand is lost to distribution caps.</p>}
       <h3>Specialty segments</h3>
@@ -256,6 +276,15 @@ function Summary({ result, baseline, loading, labels }: { result: MarketResult |
 function TractCard({ sel, labels, stores, onClose }: { sel: SelectedTract; labels: Record<string, string>; stores: Store[]; onClose: () => void }) {
   const { props: p, result: t } = sel;
   const heritage = Object.entries(p.heritage).filter(([, v]) => v >= 0.02).sort((a, b) => b[1] - a[1]);
+  // An apportioned 2019 count is split out of the 2010 tracts by land area, so
+  // one tract's change is rough. A missing basis is no promise that it is not,
+  // so only a recorded "direct" earns the unqualified number.
+  const exact2019 = p.pop2019Basis === "direct";
+  const basis2019 = exact2019
+    ? "The 2019 count comes from one unchanged 2010 tract."
+    : p.pop2019Basis === "apportioned"
+      ? "The 2019 count is apportioned by land area from the re-delineated 2010 tracts, so this tract's change is approximate."
+      : "This tract records no basis for its 2019 count, so treat the change as approximate.";
   return (
     <section className={styles.detail}>
       <div className={styles.detailHead}><h2>{p.name}</h2><button onClick={onClose} aria-label="Close">×</button></div>
@@ -283,7 +312,7 @@ function TractCard({ sel, labels, stores, onClose }: { sel: SelectedTract; label
         <dt>Under 18</dt><dd>{p.childShare == null ? "n/a" : pct(p.childShare)}</dd>
         <dt>Foreign-born</dt><dd>{p.foreignBornShare == null ? "n/a" : pct(p.foreignBornShare)}</dd>
         <dt>Density</dt><dd>{fmtNum(p.pop / Math.max(p.landKm2, 0.01))} / km²</dd>
-        {p.pop2019 ? <><dt>Since 2019</dt><dd>{p.pop >= p.pop2019 ? "+" : ""}{(((p.pop - p.pop2019) / p.pop2019) * 100).toFixed(0)}%</dd></> : null}
+        {p.pop2019 ? <><dt>Since 2019</dt><dd title={basis2019}>{exact2019 ? "" : "~"}{p.pop >= p.pop2019 ? "+" : ""}{(((p.pop - p.pop2019) / p.pop2019) * 100).toFixed(0)}%{p.pop2019Basis === "apportioned" ? " (apportioned)" : ""}</dd></> : null}
       </dl>
       {heritage.length > 0 && (
         <>
@@ -297,6 +326,22 @@ function TractCard({ sel, labels, stores, onClose }: { sel: SelectedTract; label
       )}
     </section>
   );
+}
+
+/** Why capital is left over. Only the minimum-gain exit is one that more capacity can fix. */
+export function remainderNote(plan: SitePlan): string {
+  // Leftover below the cheapest store we may build is the budget exit, and it is
+  // also the truth when a truncated plan happens to end with small change, where
+  // "more sites remain" would be wrong.
+  const cheapest = Math.min(...plan.options.types.map((t) => plan.options.costs[t]));
+  if (plan.remaining < cheapest) return `less than the ${money(cheapest)} the cheapest store we may build costs.`;
+  if (plan.stop === "minGain") return "no shortlisted site cleared the minimum gain, which can mean a distribution center is at capacity. Raise capacity below and plan again.";
+  if (plan.stop === "exhausted") return "every tract we may build in is already taken, so no site is left at any price.";
+  if (plan.outOfTime) return "planning ran out of time, so the plan is truncated and more sites remain.";
+  if (plan.stop === "maxPicks") return `planning stopped at its limit of ${plan.picks.length} stores, so the plan is truncated and more sites remain.`;
+  // A stop reason this panel does not know about says nothing about whether
+  // sites remain, so it says only what is certain: the money went unspent.
+  return "planning stopped before spending it.";
 }
 
 function BudgetPanel({ onPlan, plan, planning, labels }: { onPlan: (r: BudgetRequest) => Promise<void>; plan: SitePlan | null; planning: boolean; labels: Record<string, string> }) {
@@ -326,7 +371,7 @@ function BudgetPanel({ onPlan, plan, planning, labels }: { onPlan: (r: BudgetReq
               </li>
             ))}
           </ol>
-          {plan.remaining > 0 && plan.picks.length > 0 && <p className={styles.blurb}>{money(plan.remaining)} left: no further site clears the minimum gain, usually because a distribution center is at capacity. Raise capacity below and plan again.</p>}
+          {plan.remaining > 0 && plan.picks.length > 0 && <p className={styles.blurb}>{money(plan.remaining)} left: {remainderNote(plan)}</p>}
         </div>
       )}
     </section>
@@ -366,12 +411,13 @@ function SupplyPanel({ dcs, result, capacityScale, onCapacityScale, onForecast, 
               <ul className={styles.util}>
                 {Object.entries(r.weeklyDemand).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([c, v]) => {
                   const cap = r.capacity[c] ?? 0;
+                  // Clamped for the bar only, which cannot outgrow its track; the figure beside it is not.
                   const used = Math.min(1, v / Math.max(1, cap));
                   return (
                     <li key={c}>
                       <span>{c === "traditional" ? "Traditional" : labels[c.replace("specialty:", "")] ?? c}</span>
                       <span className={styles.bar}><span style={{ width: `${used * 100}%`, background: used >= 0.999 ? "#b83232" : used > 0.8 ? "#eb6834" : "#2a78d6" }} /></span>
-                      <span className={styles.muted}>{money(v)}/wk of {money(cap)}</span>
+                      <span className={styles.muted}>{money(v)}/wk of {money(cap)} · {utilization(v, cap)}</span>
                     </li>
                   );
                 })}
@@ -397,16 +443,17 @@ function SupplyPanel({ dcs, result, capacityScale, onCapacityScale, onForecast, 
                 <tr key={w.week}>
                   <td>{w.calendarWeek}</td>
                   {dcs.map((d) => {
-                    const mean = Object.values(w.mean[d.id] ?? {}).reduce((a, b) => a + b, 0);
-                    const hi = Object.values(w.p90[d.id] ?? {}).reduce((a, b) => a + b, 0);
-                    return <td key={d.id}>{money(mean)}<span className={styles.muted}> ≤{money(hi)}</span></td>;
+                    // Per-category quantiles do not add up to a total quantile, so the
+                    // simulation reports figures summed per run for the whole center.
+                    const t = w.total[d.id];
+                    return <td key={d.id}>{money(t?.mean ?? 0)}<span className={styles.muted}> ≤{money(t?.peak ?? 0)}</span></td>;
                   })}
                   <td>{w.lost > 500 ? money(w.lost) : "–"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className={styles.blurb}>Mean weekly orders per center, with the p90 to plan capacity against. Weeks 42–44 are the Halloween run-up; 49–52 Christmas.</p>
+          <p className={styles.blurb}>Mean weekly orders per center, with the highest run to plan capacity against. Weeks 42–44 are the Halloween run-up; 49–52 Christmas.</p>
         </div>
       )}
     </section>

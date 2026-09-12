@@ -15,10 +15,12 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { renderMapHtml } from "../lib/render/html";
 import { registerTools } from "../lib/tools/register";
-import { market, resolveOverrides, resolveParams, scenarioShape, text, toolParamsShape, z, type ScenarioArgs, type ToolParams } from "../lib/tools/shared";
+import { error, market, resolveOverrides, scenarioShape, text, toolParamsShape, z, type ScenarioArgs, type ToolParams } from "../lib/tools/shared";
 
-// Point the loaders at this repo's data regardless of cwd.
-process.env.CANDY_DATA_DIR ??= path.resolve(import.meta.dirname, "..", "data");
+// Point the loaders at this repo's data regardless of cwd. ||= rather than
+// ??=, because the loaders test the variable for truthiness, so an empty
+// string has to be replaced too.
+process.env.CANDY_DATA_DIR ||= path.resolve(import.meta.dirname, "..", "data");
 
 const server = new McpServer({ name: "candystore-mcp", version: "0.1.0" });
 registerTools(server);
@@ -33,6 +35,7 @@ const renderConfig = {
   inputSchema: z
     .object({
       path: z.string().max(400).optional().describe("Output file path. Defaults to ./candy-map-<timestamp>.html in the current directory."),
+      overwrite: z.boolean().default(false).describe("Replace the file if it already exists. Off by default, so a map never overwrites an existing file."),
       mode: z.enum(["demand", "specialty", "share", "uncaptured"]).default("demand"),
       segment: z.string().default("latam"),
       title: z.string().max(120).optional(),
@@ -45,17 +48,23 @@ const renderConfig = {
 
 interface RenderArgs extends ToolParams, ScenarioArgs {
   path?: string;
+  overwrite: boolean;
   mode: "demand" | "specialty" | "share" | "uncaptured";
   segment: string;
   title?: string;
 }
 
-server.registerTool("render_map", renderConfig, ({ path: outPath, mode, segment, title, add, remove, capacityScale, ...params }: RenderArgs) => {
-  const overrides = resolveOverrides({ add, remove, capacityScale });
-  const result = market(resolveParams(params), { add, remove, capacityScale });
-  const html = renderMapHtml(result, overrides, { mode, segment, title });
+server.registerTool("render_map", renderConfig, ({ path: outPath, overwrite, mode, segment, title, add, remove, capacityScale, ...params }: RenderArgs) => {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const file = path.resolve(outPath ?? `candy-map-${stamp}.html`);
+  // destructiveHint: false is only honest if the tool never replaces a file
+  // the caller did not mean to lose, so ask before clobbering one.
+  if (!overwrite && existsSync(file)) {
+    return error(`${file} already exists. Pass overwrite: true to replace it, or omit path for a fresh timestamped file.`);
+  }
+  const overrides = resolveOverrides({ add, remove, capacityScale });
+  const result = market(params, { add, remove, capacityScale });
+  const html = renderMapHtml(result, overrides, { mode, segment, title });
   const dir = path.dirname(file);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(file, html, "utf8");

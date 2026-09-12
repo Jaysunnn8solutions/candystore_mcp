@@ -27,7 +27,6 @@ export function assemble(tracts: TractGeo[], acs: AcsOutput, competitorCount: nu
       landKm2: t.landKm2,
       cx: t.cx,
       cy: t.cy,
-      neighbors: t.neighbors,
       pop: cur?.pop ?? 0,
       households: cur?.households ?? 0,
       medianIncome: cur?.medianIncome ?? null,
@@ -36,6 +35,7 @@ export function assemble(tracts: TractGeo[], acs: AcsOutput, competitorCount: nu
       foreignBornShare: cur?.foreignBornShare ?? null,
       heritage: cur?.heritage ?? Object.fromEntries(HERITAGE_SEGMENTS.map((s) => [s.id, 0])),
       pop2019: prior?.pop2019 ?? null,
+      pop2019Basis: prior?.basis,
     };
     return { type: "Feature" as const, properties: props, geometry: t.geometry };
   });

@@ -12,6 +12,15 @@ const schema = z
   })
   .passthrough();
 
+/**
+ * planSites makes hundreds of full market passes and bounds its own planning
+ * to 8 seconds, so this allows that budget plus a cold start and the pass in
+ * flight when the budget runs out, on a slower serverless vCPU. Set
+ * explicitly because the 10s Hobby default leaves almost no room; 60s is the
+ * most Hobby allows, so this keeps margin in hand.
+ */
+export const maxDuration = 30;
+
 /** Budget-constrained store site selection. */
 export async function POST(request: Request) {
   try {

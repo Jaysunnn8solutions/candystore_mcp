@@ -29,8 +29,7 @@ export type ScenarioArgs = {
   capacityScale?: ScenarioOverrides["capacityScale"];
 };
 
-export function resolveParams(args: ToolParams | ScenarioParams): ScenarioParams {
-  if ("demand" in args && "gravity" in args) return args as ScenarioParams;
+export function resolveParams(args: ToolParams): ScenarioParams {
   const defined = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
   return toParams(paramsSchema.parse(defined));
 }
@@ -40,7 +39,7 @@ export function resolveOverrides(args: ScenarioArgs): ScenarioOverrides {
   return parseOverrides({ add: args.add ?? [], remove: args.remove ?? [], capacityScale: args.capacityScale ?? [] });
 }
 
-export function market(args: ToolParams | ScenarioParams, scenario: ScenarioArgs = {}): MarketResult {
+export function market(args: ToolParams, scenario: ScenarioArgs = {}): MarketResult {
   return runMarketCached(resolveParams(args), resolveOverrides(scenario));
 }
 
@@ -72,6 +71,17 @@ export function fmtInt(x: number): string {
 
 export function pct(x: number): string {
   return `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+}
+
+/**
+ * How hard a distribution center's weekly capacity is being worked, as text.
+ * Deliberately unclamped: an over-subscribed center is the thing a planner
+ * needs to see, and clamping it to "100% used" hides the shortfall. A center
+ * with no capacity for a category has no ratio at all, only unmet demand.
+ */
+export function utilization(demand: number, capacity: number): string {
+  if (capacity <= 0) return "no capacity";
+  return `${pct(demand / capacity)} used`;
 }
 
 export function segmentLabel(id: string): string {

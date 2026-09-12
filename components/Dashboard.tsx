@@ -13,7 +13,7 @@ import { viewToClipboardText, type ViewState } from "@/lib/view-state";
 import { download, toCsv } from "./exportData";
 import type { MapPoint } from "./MarketMap";
 import { quintiles, type Mode } from "./scales";
-import { Sidebar, type BudgetRequest, type ForecastRequest } from "./Sidebar";
+import { Sidebar, remainderNote, type BudgetRequest, type ForecastRequest } from "./Sidebar";
 import { currentLink, readHash, writeHash } from "./urlState";
 import styles from "./Dashboard.module.css";
 
@@ -45,6 +45,16 @@ function scenarioBody(params: ScenarioParams, view: Pick<ViewState, "scenario" |
   });
 }
 
+/**
+ * The server re-ids added stores by their position in the `add` array
+ * (`new-0`, `new-1`, …), so the client has to use the same positional ids or
+ * every lookup by store id into the returned result misses. Renumbering on
+ * removal too keeps them aligned with the next request body.
+ */
+function renumber(list: Store[]): Store[] {
+  return list.map((s, i) => (s.id === `new-${i}` ? s : { ...s, id: `new-${i}` }));
+}
+
 function useDebouncedFetch<T>(key: string | null, fetcher: (signal: AbortSignal) => Promise<T>, delay: number, onDone: (v: T | null, err: string | null) => void) {
   const latest = useRef(0);
   useEffect(() => {
@@ -71,7 +81,9 @@ export function Dashboard() {
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [segment, setSegment] = useState(initial.segment);
   const [params, setParams] = useState<ScenarioParams>(initial.params);
-  const [scenario, setScenario] = useState<Store[]>(initial.scenario);
+  // Renumbered on the way in as well, so a link whose store ids the parser had
+  // to shift cannot seed the state out of step with the request body.
+  const [scenario, setScenario] = useState<Store[]>(() => renumber(initial.scenario));
   const [closed, setClosed] = useState<string[]>(initial.closed);
   const [capacityScale, setCapacityScale] = useState(initial.capacityScale);
   const [selected, setSelected] = useState<string | null>(initial.selected);
@@ -83,7 +95,7 @@ export function Dashboard() {
   const [tracts, setTracts] = useState<TractCollection | null>(null);
   const [staticData, setStaticData] = useState<StaticData | null>(null);
   const [baseline, setBaseline] = useState<MarketResult | null>(null);
-  const [result, setResult] = useState<MarketResult | null>(null);
+  const [result, setResult] = useState<{ key: string; value: MarketResult | null } | null>(null);
   const [version, setVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,14 +152,22 @@ export function Dashboard() {
     useCallback((signal: AbortSignal) => getJson<MarketResult>("/api/market", { method: "POST", headers: { "Content-Type": "application/json" }, body: scenarioKey ?? "{}", signal }), [scenarioKey]),
     250,
     useCallback((v: MarketResult | null, err: string | null) => {
-      if (v) {
-        setResult(v);
-        setVersion((n) => n + 1);
-      } else if (err) setError(err);
-    }, [])
+      if (!scenarioKey) return;
+      // Recorded even when it failed, so the request is not left looking pending.
+      setResult({ key: scenarioKey, value: v });
+      if (v) setVersion((n) => n + 1);
+      else if (err) setError(err);
+    }, [scenarioKey])
   );
 
-  const shown = scenarioActive && result ? result : baseline;
+  // A scenario result only describes the inputs it was computed from, so until
+  // it catches up fall back to the baseline rather than present two different
+  // parameter sets as a before and after. The baseline is debounced too, so in
+  // the moment after a slider moves it is one parameter set behind; both
+  // windows are marked busy, and nothing is compared across them.
+  const scenarioShown = scenarioKey !== null && result?.key === scenarioKey ? result.value : null;
+  const shown = scenarioShown ?? baseline;
+  const busy = loading || (scenarioKey !== null && result?.key !== scenarioKey);
   const stores = useMemo(() => {
     const base = (staticData?.stores ?? []).filter((s) => !closed.includes(s.id));
     return [...base, ...scenario];
@@ -169,12 +189,13 @@ export function Dashboard() {
     return { props: f.properties, result: shown?.tracts.find((t) => t.geoid === selected) };
   }, [selected, tracts, shown]);
 
-  const addStore = useCallback((s: Store) => setScenario((list) => [...list, s]), []);
+  const addStore = useCallback((s: Store) => setScenario((list) => renumber([...list, s])), []);
+  const removeStore = useCallback((id: string) => setScenario((list) => renumber(list.filter((s) => s.id !== id))), []);
   const onPlace = useCallback(
     (lon: number, lat: number) => {
       if (!placing) return;
       const n = scenario.length + 1;
-      addStore({ id: `new-${Date.now()}`, name: `Proposed ${placing} store ${n}`, type: placing, lon: Math.round(lon * 1e5) / 1e5, lat: Math.round(lat * 1e5) / 1e5, size: 1, segments: [], proposed: true });
+      addStore({ id: `new-${scenario.length}`, name: `Proposed ${placing} store ${n}`, type: placing, lon: Math.round(lon * 1e5) / 1e5, lat: Math.round(lat * 1e5) / 1e5, size: 1, segments: [], proposed: true });
     },
     [placing, scenario.length, addStore]
   );
@@ -186,10 +207,12 @@ export function Dashboard() {
         const r = await getJson<SitePlan>("/api/sites", { method: "POST", headers: { "Content-Type": "application/json" }, body: scenarioBody(params, { scenario, closed, capacityScale }, { ...req }) });
         setPlan(r);
         if (r.picks.length === 0) {
-          setError("No site adds enough revenue at these costs and capacities.");
+          // Same reason the panel gives for leftover capital, rather than
+          // blaming revenue when the run was stopped by cost or by the clock.
+          setError(`No sites picked: ${remainderNote(r)}`);
           return;
         }
-        setScenario((list) => [...list, ...r.picks.map((k) => ({ ...k.store, id: `plan-${Date.now()}-${k.step}` }))]);
+        setScenario((list) => renumber([...list, ...r.picks.map((k) => k.store)]));
         setFlyTo({ lon: r.picks[0].store.lon, lat: r.picks[0].store.lat, label: r.picks[0].tractName });
         setError(null);
       } catch (e) {
@@ -261,7 +284,8 @@ export function Dashboard() {
         onParams={setParams}
         result={shown}
         baseline={baseline}
-        loading={loading}
+        resultIsScenario={scenarioShown !== null}
+        loading={busy}
         stores={stores}
         dcs={staticData?.dcs ?? []}
         selected={selectedInfo}
@@ -273,7 +297,7 @@ export function Dashboard() {
         placing={placing}
         onPlacing={setPlacing}
         scenario={scenario}
-        onRemoveStore={(id) => setScenario((list) => list.filter((s) => s.id !== id))}
+        onRemoveStore={removeStore}
         closed={closed}
         onToggleClosed={(id) => setClosed((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]))}
         onClearScenario={() => {
@@ -319,7 +343,7 @@ export function Dashboard() {
             selected={selected}
             onSelect={setSelected}
             onPlace={onPlace}
-            onRemoveStore={(id) => setScenario((list) => list.filter((s) => s.id !== id))}
+            onRemoveStore={removeStore}
           />
         ) : (
           <div className={styles.mapLoading}>Loading tracts…</div>

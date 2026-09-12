@@ -105,12 +105,17 @@ export interface AcsCurrent {
 
 export interface AcsPrior {
   pop2019: number | null;
+  /** "direct" when one unchanged 2010 tract supplied the whole figure. */
+  basis: "direct" | "apportioned";
 }
 
 interface RelPart {
   geoid20: string;
   geoid10: string;
+  /** Part's land as a share of the 2010 tract: the apportionment weight. */
   share: number;
+  /** Part's land as a share of the 2020 tract, which says whether this one donor covers it. */
+  share20: number;
 }
 
 async function loadRelationship(): Promise<RelPart[]> {
@@ -119,9 +124,15 @@ async function loadRelationship(): Promise<RelPart[]> {
   const parts: RelPart[] = [];
   for (const r of rows) {
     const land10 = Number(r.AREALAND_TRACT_10);
+    const land20 = Number(r.AREALAND_TRACT_20);
     const part = Number(r.AREALAND_PART);
     if (!(land10 > 0)) continue;
-    parts.push({ geoid20: r.GEOID_TRACT_20, geoid10: r.GEOID_TRACT_10, share: part / land10 });
+    parts.push({
+      geoid20: r.GEOID_TRACT_20,
+      geoid10: r.GEOID_TRACT_10,
+      share: part / land10,
+      share20: land20 > 0 ? part / land20 : 0,
+    });
   }
   log(`relationship file: ${parts.length} tract parts statewide`);
   return parts;
@@ -162,23 +173,35 @@ export async function buildAcs(): Promise<AcsOutput> {
     };
   }
 
-  // Apportion 2019 population onto 2020 tracts by land-area share.
+  // Apportion 2019 population onto 2020 tracts by land-area share, which
+  // assumes each donor's population was spread evenly over its land. Where
+  // the re-delineation split a donor that assumption is wrong by an unknown
+  // amount, so record which tracts it was needed for.
   const acc = new Map<string, number>();
+  const wholeDonor = new Set<string>();
   for (const p of parts) {
     const row = prior.get(p.geoid10);
     if (!row) continue;
     acc.set(p.geoid20, (acc.get(p.geoid20) ?? 0) + (row[V.pop] ?? 0) * p.share);
+    // One donor covering essentially all of both tracts means nothing was
+    // apportioned; a tenth of a percent absorbs the boundary corrections the
+    // re-delineation made without letting a real split through.
+    if (p.share >= 0.999 && p.share20 >= 0.999) wholeDonor.add(p.geoid20);
   }
   const shapedPrior: Record<string, AcsPrior> = {};
   let matched = 0;
+  let direct = 0;
   for (const geoid of current.keys()) {
     const v = acc.get(geoid);
     if (v != null) {
-      shapedPrior[geoid] = { pop2019: Math.round(v) };
+      const basis = wholeDonor.has(geoid) ? "direct" : "apportioned";
+      shapedPrior[geoid] = { pop2019: Math.round(v), basis };
       matched++;
+      if (basis === "direct") direct++;
     }
   }
   log(`crosswalk: ${matched} of ${current.size} tracts have a prior-vintage match`);
+  log(`crosswalk: ${direct} direct from one unchanged 2010 tract, ${matched - direct} apportioned from split donors`);
 
   const out = { current: shapedCurrent, prior: shapedPrior };
   mkdirSync(CACHE_DIR, { recursive: true });

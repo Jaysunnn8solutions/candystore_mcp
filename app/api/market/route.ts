@@ -2,6 +2,13 @@ import { handleApiError, requestInput } from "@/lib/api";
 import { runMarketCached } from "@/lib/model/market";
 import { parseRequestBody } from "@/lib/model/params";
 
+/**
+ * One market run over 1,200 tracts, plus reading and serializing the data on
+ * a cold start. Well under a second here; this is headroom on a slower
+ * serverless vCPU rather than an expected cost.
+ */
+export const maxDuration = 15;
+
 /** The market result for a parameter set (GET) or a scenario (POST). */
 async function handle(request: Request) {
   try {

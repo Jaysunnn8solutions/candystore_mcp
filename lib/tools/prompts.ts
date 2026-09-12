@@ -9,7 +9,9 @@ export const expansionPrompt = {
   config: {
     title: "Plan an expansion",
     description: "Where to open new general and specialty candy stores with a given budget, and what it does to supply.",
-    argsSchema: z.object({ budget: z.number().min(100_000).max(1_000_000_000).default(10_000_000) }),
+    // Prompt arguments arrive as strings over the wire, so a plain z.number()
+    // could never validate.
+    argsSchema: z.object({ budget: z.coerce.number().min(100_000).max(1_000_000_000).default(10_000_000) }),
   },
   handler: ({ budget }: { budget: number }) =>
     userMessage(
@@ -19,7 +21,7 @@ export const expansionPrompt = {
         `2. Call find_sites with budget ${budget}.`,
         `3. Call what_if with the picks as add, then forecast_orders with the same add for 26 weeks from week 36.`,
         `4. If a distribution center caps revenue, test capacityScale on that center and category and say what the extra capacity is worth.`,
-        `Report: the sites in order, revenue added per site net of cannibalization, the general/specialty split and why, which centers bind, and the supplier order forecast with p90 for the peak weeks. State that costs, spend and capacities are mock assumptions.`,
+        `Report: the sites in order, revenue added per site net of cannibalization, the general/specialty split and why, which centers bind, and the supplier order forecast with the mean and the peak week per center. State that costs, spend and capacities are mock assumptions.`,
       ].join("\n")
     ),
 };
@@ -45,15 +47,18 @@ export const supplierPrompt = {
   name: "supplier_forecast",
   config: {
     title: "Supplier order forecast",
-    description: "Expected weekly orders per distribution center and category, with ranges, for the coming season.",
-    argsSchema: z.object({ weeks: z.number().int().min(4).max(52).default(26), startWeek: z.number().int().min(1).max(52).default(36) }),
+    description: "Expected weekly orders per distribution center and category, with the peak week to plan capacity against, for the coming season.",
+    argsSchema: z.object({
+      weeks: z.coerce.number().int().min(4).max(52).default(26),
+      startWeek: z.coerce.number().int().min(1).max(52).default(36),
+    }),
   },
   handler: ({ weeks, startWeek }: { weeks: number; startWeek: number }) =>
     userMessage(
       [
         `Prepare a supplier order forecast for the next ${weeks} weeks starting calendar week ${startWeek}.`,
         `Call store_performance for current utilization, then forecast_orders with weeks ${weeks} and startWeek ${startWeek}.`,
-        `Write it for a supplier: expected order per center and category per week, the p90 for peak weeks, the risk from outages, and which categories are close to capacity.`,
+        `Write it for a supplier: expected order per center and category per week, the peak week per center to plan capacity against, the risk from outages, and which categories are close to capacity.`,
       ].join("\n")
     ),
 };

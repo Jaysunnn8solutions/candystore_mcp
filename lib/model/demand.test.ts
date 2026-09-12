@@ -6,7 +6,7 @@ import type { TractProps } from "./types";
 function tract(over: Partial<TractProps>): TractProps {
   return {
     geoid: "1", name: "t", countyFips: "121", county: "Fulton", place: "Atlanta", landKm2: 1,
-    cx: -84.4, cy: 33.7, neighbors: [], pop: 4000, households: 1500, medianIncome: 75_000,
+    cx: -84.4, cy: 33.7, pop: 4000, households: 1500, medianIncome: 75_000,
     childShare: 0.22, noVehicleRate: 0.05, foreignBornShare: 0.1,
     heritage: { latam: 0.02, eastasia: 0.01 }, pop2019: 3800, ...over,
   };

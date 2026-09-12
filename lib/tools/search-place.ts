@@ -1,7 +1,22 @@
 import { geocode } from "../geocode";
 import { haversineKm } from "../spatial/stats";
 import { loadTracts } from "../data/load";
-import { market, money, pct, placeLabel, readOnly, segmentLabel, text, toolParamsShape, type ToolParams, z } from "./shared";
+import {
+  describeScenario,
+  market,
+  money,
+  pct,
+  placeLabel,
+  readOnly,
+  resolveOverrides,
+  scenarioShape,
+  segmentLabel,
+  text,
+  toolParamsShape,
+  type ScenarioArgs,
+  type ToolParams,
+  z,
+} from "./shared";
 
 export const searchPlaceConfig = {
   title: "Search a place",
@@ -12,34 +27,39 @@ export const searchPlaceConfig = {
     .object({
       query: z.string().min(2).max(120),
       withinKm: z.number().min(0.5).max(15).default(3),
-      limit: z.number().int().min(1).max(40).default(10),
+      limit: z.number().int().min(1).max(40).default(10)
+        .describe("How many of the nearest tracts to list. The radius totals always cover every tract in range."),
       ...toolParamsShape,
+      ...scenarioShape,
     })
     .strict(),
   annotations: { ...readOnly, openWorldHint: true },
 };
 
-interface Args extends ToolParams {
+interface Args extends ToolParams, ScenarioArgs {
   query: string;
   withinKm: number;
   limit: number;
 }
 
-export async function searchPlaceHandler({ query, withinKm, limit, ...params }: Args) {
+export async function searchPlaceHandler({ query, withinKm, limit, add, remove, capacityScale, ...params }: Args) {
   const matches = await geocode(query);
   if (matches.length === 0) return text(`Nothing found for "${query}" inside metro Atlanta.`);
   const best = matches[0];
-  const r = market(params);
+  const r = market(params, { add, remove, capacityScale });
   const results = new Map(r.tracts.map((t) => [t.geoid, t]));
-  const rows = loadTracts()
+  const inRadius = loadTracts()
     .features.map((f) => ({ p: f.properties, km: haversineKm(best.lon, best.lat, f.properties.cx, f.properties.cy) }))
     .filter((x) => x.km <= withinKm)
-    .sort((a, b) => a.km - b.km)
-    .slice(0, limit);
-  const total = rows.reduce((s, x) => s + (results.get(x.p.geoid)?.total ?? 0), 0);
+    .sort((a, b) => a.km - b.km);
+  // Aggregate over the whole radius, not the listed slice: urban tracts are
+  // small, so the default limit hides most of a 3 km circle.
+  const total = inRadius.reduce((s, x) => s + (results.get(x.p.geoid)?.total ?? 0), 0);
+  const rows = inRadius.slice(0, limit);
   return text(
     [
-      `Matched "${query}" to ${best.label} (${best.lat.toFixed(4)}, ${best.lon.toFixed(4)}) via ${best.source}. ${rows.length} tracts within ${withinKm} km, ${money(total)}/yr candy demand combined.`,
+      `Matched "${query}" to ${best.label} (${best.lat.toFixed(4)}, ${best.lon.toFixed(4)}) via ${best.source}. ${inRadius.length} tract${inRadius.length === 1 ? "" : "s"} within ${withinKm} km, ${money(total)}/yr candy demand combined` +
+        `${rows.length < inRadius.length ? (rows.length === 1 ? "; only the nearest one is listed" : `; the ${rows.length} nearest are listed`) : ""}.${describeScenario(resolveOverrides({ add, remove, capacityScale }))}`,
       ``,
       ...rows.map(({ p, km }) => {
         const t = results.get(p.geoid)!;

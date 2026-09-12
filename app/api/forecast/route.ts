@@ -15,6 +15,13 @@ const schema = z
   })
   .passthrough();
 
+/**
+ * A market run plus the largest simulation the schema allows (52 weeks ×
+ * 2,000 runs) measures about a third of a second here, so this is headroom
+ * for a cold start on a slower serverless vCPU rather than an expected cost.
+ */
+export const maxDuration = 15;
+
 /** Weekly supplier order forecast with outages. */
 export async function POST(request: Request) {
   try {

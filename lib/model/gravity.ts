@@ -75,7 +75,8 @@ export function captureForTract(
 
   for (const [category, dollars] of Object.entries(demand.byCategory)) {
     if (dollars <= 0) continue;
-    let denom = g.outsideOption;
+    // A negative outside option would flip or explode every share below.
+    let denom = Math.max(g.outsideOption, 0);
     for (let i = 0; i < outlets.length; i++) {
       if (attr[i] > 0 && outlets[i].categories.has(category)) denom += attr[i];
     }

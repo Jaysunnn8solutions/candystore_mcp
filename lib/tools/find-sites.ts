@@ -59,15 +59,31 @@ export function findSitesHandler({ budget, costGeneral, costSpecialty, types, ad
     plan.picks.map((k) => ({ type: k.store.type, lon: k.store.lon, lat: k.store.lat, segments: k.store.segments, name: k.store.name }))
   );
 
+  // Why the capital is not fully spent. Leftover below the cheapest store we
+  // are allowed to build is checked first: that is the "budget" exit, and it
+  // is also the truth when a truncated plan happens to end with small change,
+  // where "more sites remain" would be wrong.
+  const cheapest = Math.min(...types.map((t) => (t === "general" ? costGeneral : costSpecialty)));
+  const why =
+    plan.remaining < cheapest
+      ? `less than the ${money(cheapest)} the cheapest store we may build costs`
+      : plan.stop === "minGain"
+        ? "no shortlisted site cleared the minimum gain, which can mean a distribution center is at capacity"
+        : plan.stop === "exhausted"
+          ? "every tract we may build in is already taken, so no site is left at any price"
+          : plan.outOfTime
+            ? "planning ran out of time, so the plan is truncated and more sites remain"
+            : `planning stopped at its limit of ${plan.picks.length} stores, so the plan is truncated and more sites remain`;
+
   return text(
     [
       `Expansion plan for ${money(budget)} (general ${money(costGeneral)}, specialty ${money(costSpecialty)}; ${describeParams(p)}).${describeScenario(overrides)}`,
       `Spent ${money(plan.spent)} on ${plan.picks.length} stores, ${money(plan.remaining)} left` +
-        (plan.remaining > 0 && plan.picks.length > 0 ? " (no remaining candidate clears the minimum gain, usually because a distribution center is at capacity)" : "") +
+        (plan.remaining > 0 ? ` (${why})` : "") +
         `.`,
       `Chain revenue ${money(plan.baseline.ourRevenue)} → ${money(plan.after.ourRevenue)}/yr; market share ${pct(plan.baseline.ourShare)} → ${pct(plan.after.ourShare)}.`,
       ``,
-      ...(picks.length ? picks : ["No site adds enough revenue at these costs and caps."]),
+      ...(picks.length ? picks : ["No sites picked."]),
       ``,
       `Sites are tract centroids. To test the plan with supply changes, call what_if with add=${addJson}`,
     ].join("\n")

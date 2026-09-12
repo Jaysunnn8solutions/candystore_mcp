@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import type { Layer, PathOptions } from "leaflet";
 import type { Feature } from "geojson";
@@ -15,7 +15,6 @@ import {
   NEUTRAL,
   NO_DATA,
   ORANGE,
-  STORE_SLOTS,
   STORE_TYPE_COLORS,
   fmtNum,
   money,
@@ -23,6 +22,8 @@ import {
   quintiles,
   ramp,
   shareColor,
+  storeColors,
+  utilization,
   type Mode,
 } from "./scales";
 import styles from "./GapMap.module.css";
@@ -101,8 +102,16 @@ export default function MarketMap(props: Props) {
   const { tracts, result, version, mode, segment, segmentLabels, stores, dcs, competitors, showCompetitors, placing, searchMarker, flyTo, selected, onSelect, onPlace, onRemoveStore } = props;
   const dark = useDarkMode();
 
+  // react-leaflet runs onEachFeature once per GeoJSON mount, so the click
+  // handlers below keep whatever `placing` was then. A ref lets them read the
+  // current mode without remounting 1200 polygons to flip a cursor.
+  const placingRef = useRef(placing);
+  useEffect(() => {
+    placingRef.current = placing;
+  }, [placing]);
+
   const byGeoid = useMemo(() => new Map(result?.tracts.map((t) => [t.geoid, t]) ?? []), [result]);
-  const storeSlot = useMemo(() => new Map(stores.map((s, i) => [s.id, STORE_SLOTS[i % STORE_SLOTS.length]])), [stores]);
+  const storeSlot = useMemo(() => storeColors(stores), [stores]);
   const breaks = useMemo(() => {
     const all = result?.tracts ?? [];
     const cat = `specialty:${segment}`;
@@ -154,7 +163,7 @@ export default function MarketMap(props: Props) {
     );
     layer.on({
       click: () => {
-        if (placing) return;
+        if (placingRef.current) return;
         onSelect(selected === p.geoid ? null : p.geoid);
       },
     });
@@ -178,7 +187,7 @@ export default function MarketMap(props: Props) {
         ))}
       {dcs.map((d) => {
         const r = result?.dcs.find((x) => x.id === d.id);
-        const used = r ? Object.entries(r.weeklyDemand).filter(([, v]) => v > 0).map(([c, v]) => `${c.replace("specialty:", "")} ${pct(Math.min(1, v / Math.max(1, r.capacity[c] ?? 0)))}`).join(", ") : "";
+        const used = r ? Object.entries(r.weeklyDemand).filter(([, v]) => v > 0).map(([c, v]) => `${c.replace("specialty:", "")} ${utilization(v, r.capacity[c] ?? 0)}`).join(", ") : "";
         return (
           <CircleMarker key={d.id} center={[d.lat, d.lon]} radius={10} pathOptions={{ color: ink, weight: 2, fillColor: DC_COLOR, fillOpacity: 1 }}>
             <Tooltip direction="top" offset={[0, -10]}>{d.name} · distribution center{used ? ` · ${used}` : ""}</Tooltip>
@@ -187,6 +196,8 @@ export default function MarketMap(props: Props) {
       })}
       {stores.map((s) => {
         const r = result?.stores.find((x) => x.id === s.id);
+        // A specialty store placed with no segments has them picked for it, so the result knows what it carries.
+        const segments = r?.segments ?? s.segments;
         return (
           <CircleMarker
             key={s.id}
@@ -197,7 +208,7 @@ export default function MarketMap(props: Props) {
           >
             <Tooltip direction="top" offset={[0, -9]}>
               {s.name} · {s.type}
-              {s.segments.length ? ` (${s.segments.map((g) => segmentLabels[g] ?? g).join(", ")})` : ""}
+              {segments.length ? ` (${segments.map((g) => segmentLabels[g] ?? g).join(", ")})` : ""}
               {r ? ` · ${money(r.revenue)}/yr` : ""}
               {s.proposed ? " · proposed, click to remove" : ""}
             </Tooltip>

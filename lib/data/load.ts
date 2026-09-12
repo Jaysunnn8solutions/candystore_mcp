@@ -22,6 +22,9 @@ export interface DataManifest {
  * traces just that folder; CANDY_DATA_DIR overrides it for tests.
  */
 function readJson<T>(name: string): T {
+  // Tested for truthiness, so CANDY_DATA_DIR="" is no override rather than a
+  // join against "" — keep it a bare read of the variable, which is what lets
+  // Turbopack see the ./data branch as statically scoped.
   const override = process.env.CANDY_DATA_DIR;
   const text = override
     ? readFileSync(/* turbopackIgnore: true */ path.join(override, name), "utf8")

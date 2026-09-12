@@ -9,6 +9,7 @@ import {
   scenarioShape,
   text,
   toolParamsShape,
+  utilization,
   type ScenarioArgs,
   type ToolParams,
   z,
@@ -44,7 +45,7 @@ export function whatIfHandler({ add, remove, capacityScale, ...params }: ToolPar
   const capLines = scen.dcs.flatMap((d) =>
     Object.entries(d.fillRate)
       .filter(([, f]) => f < 0.999)
-      .map(([c, f]) => `- ${d.name}: ${categoryLabel(c)} at ${pct(Math.min(1, d.weeklyDemand[c] / Math.max(1, d.capacity[c])))} of capacity, fill ${pct(f)}`)
+      .map(([c, f]) => `- ${d.name}: ${categoryLabel(c)} ${utilization(d.weeklyDemand[c] ?? 0, d.capacity[c] ?? 0)}, fill ${pct(f)}`)
   );
 
   return text(

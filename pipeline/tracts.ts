@@ -2,11 +2,10 @@
  * Stage 1: tract boundaries.
  *
  * Downloads the Census cartographic boundary shapefile for Georgia, keeps
- * the study counties, computes queen-contiguity neighbors on the
- * full-precision geometry, labels each tract with the city or
- * census-designated place its centroid falls in, then truncates
- * coordinates for a smaller file. Neighbors are computed before
- * truncation so shared borders still touch.
+ * the study counties, labels each tract with the city or census-designated
+ * place that covers most of it, then truncates coordinates for a smaller
+ * file. Place assignment runs on the full-precision geometry so a boundary
+ * that two files share still lines up.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -22,12 +21,11 @@ export interface TractGeo {
   name: string;
   countyFips: string;
   county: string;
-  /** City or census-designated place containing the centroid, or "Unincorporated <County> County". */
+  /** City or census-designated place covering most of the tract, or "Unincorporated <County> County". */
   place: string;
   landKm2: number;
   cx: number;
   cy: number;
-  neighbors: string[];
   geometry: Polygon | MultiPolygon;
 }
 
@@ -60,47 +58,54 @@ export async function buildTracts(): Promise<TractGeo[]> {
   const features = fc.features.filter((f) => countyNames.has(f.properties.COUNTYFP));
   log(`tracts in study area: ${features.length} of ${fc.features.length} statewide`);
 
-  // Queen contiguity via bounding-box prefilter, then a real intersection test.
-  const boxes = features.map((f) => turf.bbox(f));
-  const neighbors: string[][] = features.map(() => []);
-  let pairs = 0;
-  for (let i = 0; i < features.length; i++) {
-    for (let j = i + 1; j < features.length; j++) {
-      const a = boxes[i];
-      const b = boxes[j];
-      if (a[0] > b[2] || b[0] > a[2] || a[1] > b[3] || b[1] > a[3]) continue;
-      pairs++;
-      if (turf.booleanIntersects(features[i], features[j])) {
-        neighbors[i].push(features[j].properties.GEOID);
-        neighbors[j].push(features[i].properties.GEOID);
-      }
-    }
-  }
-  const islands = neighbors.filter((n) => n.length === 0).length;
-  log(`contiguity: ${pairs} candidate pairs checked, ${islands} islands`);
-
-  // Place lookup: bbox prefilter then point-in-polygon on the centroid.
+  // Place lookup: bbox prefilter, then the place holding more of the tract
+  // than any other and more than the unincorporated remainder. A centroid
+  // test mislabels tracts whose centre of mass lands in a notch the city
+  // boundary leaves out, or across the line in a neighbouring place.
   const placeBoxes = places.features.map((f) => turf.bbox(f));
-  const placeFor = (lon: number, lat: number, county: string): string => {
+  const placeFor = (tract: Feature<Polygon | MultiPolygon>, county: string): string => {
+    const tb = turf.bbox(tract);
+    const shape = turf.feature(tract.geometry);
+    let bestName = "";
+    let bestArea = 0;
+    let placeArea = 0;
     for (let k = 0; k < places.features.length; k++) {
       const b = placeBoxes[k];
-      if (lon < b[0] || lon > b[2] || lat < b[1] || lat > b[3]) continue;
-      if (turf.booleanPointInPolygon([lon, lat], places.features[k])) {
-        return places.features[k].properties.NAME;
+      if (tb[0] > b[2] || b[0] > tb[2] || tb[1] > b[3] || b[1] > tb[3]) continue;
+      let area = 0;
+      try {
+        const piece = turf.intersect(
+          turf.featureCollection([shape, turf.feature(places.features[k].geometry)])
+        );
+        if (piece) area = turf.area(piece);
+      } catch {
+        // turf throws on slivers and self-touching rings in the place file;
+        // skipping the pair loses at most a boundary sliver.
+        continue;
+      }
+      placeArea += area;
+      if (area > bestArea) {
+        bestArea = area;
+        bestName = places.features[k].properties.NAME;
       }
     }
-    return `Unincorporated ${county} County`;
+    // Census places do not overlap, so whatever no place claims is
+    // unincorporated and competes with the leader for the label.
+    const unincorporated = turf.area(tract) - placeArea;
+    return bestArea > 0 && bestArea >= unincorporated
+      ? bestName
+      : `Unincorporated ${county} County`;
   };
 
   const placeCounts = new Map<string, number>();
-  const out: TractGeo[] = features.map((f, i) => {
+  const out: TractGeo[] = features.map((f) => {
     const centroid = turf.centerOfMass(f).geometry.coordinates;
     const truncated = turf.truncate(f as Feature<Polygon | MultiPolygon>, {
       precision: 5,
       mutate: false,
     });
     const county = countyNames.get(f.properties.COUNTYFP)!;
-    const place = placeFor(centroid[0], centroid[1], county);
+    const place = placeFor(f as Feature<Polygon | MultiPolygon>, county);
     placeCounts.set(place, (placeCounts.get(place) ?? 0) + 1);
     return {
       geoid: f.properties.GEOID,
@@ -111,7 +116,6 @@ export async function buildTracts(): Promise<TractGeo[]> {
       landKm2: Math.round((f.properties.ALAND / 1e6) * 1000) / 1000,
       cx: Math.round(centroid[0] * 1e6) / 1e6,
       cy: Math.round(centroid[1] * 1e6) / 1e6,
-      neighbors: neighbors[i],
       geometry: truncated.geometry,
     };
   });

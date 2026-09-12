@@ -17,8 +17,37 @@ export const GREEN = ["#e1e0d9", "#b7e0c0", "#6cc08b", "#2c9a5a", "#006b2f"];
 export const NEUTRAL = "#e1e0d9";
 export const NO_DATA = "#c3c2b7";
 
-/** Categorical slots for trade areas, in the validated palette order. */
-export const STORE_SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+/**
+ * Categorical slots for trade areas, in the validated palette order, minus the
+ * hues the marker rows of the same legend own: blue for general stores,
+ * magenta for specialty, yellow for distribution centers, gray for
+ * competitors. Sharing one would put two meanings on a single swatch. The
+ * purple stands in for the three that dropped out; it measures clear of every
+ * marker colour and of the five hues kept, on light and dark surfaces alike.
+ */
+export const STORE_SLOTS = ["#eb6834", "#1baf7a", "#4a3aa7", "#008300", "#a63bad", "#e34948"];
+
+function darken(hex: string, factor: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => Math.round(c * factor).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * One colour per store, by position. A plan can open more stores than there
+ * are palette slots, so each further pass through them is darker than the
+ * last: a repeated colour would put two store names on one legend swatch.
+ * The factor shrinks without ever reaching zero, so no two passes match.
+ */
+export function storeColor(i: number): string {
+  const cycle = Math.floor(i / STORE_SLOTS.length);
+  const base = STORE_SLOTS[i % STORE_SLOTS.length];
+  return cycle === 0 ? base : darken(base, 1 / (1 + cycle * 0.45));
+}
+
+/** Store id → colour, so the map and the legend cannot disagree. */
+export function storeColors(stores: Array<{ id: string }>): Map<string, string> {
+  return new Map(stores.map((s, i) => [s.id, storeColor(i)]));
+}
 
 export const STORE_TYPE_COLORS = { general: "#2a78d6", specialty: "#e87ba4" };
 export const DC_COLOR = "#eda100";
@@ -54,6 +83,18 @@ export function money(x: number): string {
 
 export function pct(x: number): string {
   return `${(x * 100).toFixed(x < 0.1 && x > 0 ? 1 : 0)}%`;
+}
+
+/**
+ * Weekly demand as a share of weekly capacity, which can exceed 100%: the
+ * gap above capacity is the point. Same rule and same wording as
+ * utilization() in lib/tools/shared.ts, so the map and the tools cannot
+ * describe the same number differently; copied rather than imported
+ * because that module reads the data files from disk.
+ */
+export function utilization(demand: number, capacity: number): string {
+  if (capacity <= 0) return "no capacity";
+  return `${pct(demand / capacity)} used`;
 }
 
 export function fmtNum(x: number | null | undefined): string {

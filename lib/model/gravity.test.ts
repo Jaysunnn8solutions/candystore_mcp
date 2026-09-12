@@ -5,7 +5,7 @@ import type { Store, TractDemand, TractProps } from "./types";
 
 const tract: TractProps = {
   geoid: "1", name: "t", countyFips: "121", county: "Fulton", place: "Atlanta", landKm2: 1,
-  cx: -84.4, cy: 33.7, neighbors: [], pop: 4000, households: 1500, medianIncome: 75_000,
+  cx: -84.4, cy: 33.7, pop: 4000, households: 1500, medianIncome: 75_000,
   childShare: 0.22, noVehicleRate: 0.05, foreignBornShare: 0.3, heritage: { latam: 0.3 }, pop2019: null,
 };
 const demand: TractDemand = {

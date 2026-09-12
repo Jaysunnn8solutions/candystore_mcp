@@ -76,9 +76,10 @@ export const storeSchema = z
     lat: latSchema,
     size: z.number().min(0.2).max(5).default(1),
     segments: z.array(z.string().max(20)).max(7).default([])
-      .describe("Specialty stores only: heritage segment ids they carry. Empty means 'pick the strongest local segments'."),
+      .describe("Specialty stores only: heritage segment ids they carry, from latam, caribbean, eastasia, southasia, mideast, africa, easteurope. Empty means 'pick the strongest local segments'."),
     name: z.string().max(80).optional(),
-    dc: z.string().max(40).optional(),
+    dc: z.string().max(40).optional()
+      .describe("Distribution center id as listed by describe_market (an id such as dc-east, not a name). Omit to supply the store from the nearest center."),
   })
   .strict();
 

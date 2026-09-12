@@ -20,7 +20,8 @@ export const forecastOrdersConfig = {
   description:
     "Simulate weekly orders per distribution center and category over a " +
     "horizon, with candy seasonality (Halloween, Christmas, Valentine's, Easter) " +
-    "and random center outages, so suppliers get expected volumes with a range. " +
+    "and random center outages, so suppliers get expected volumes with the " +
+    "heaviest week to plan capacity against. " +
     "Works on the baseline or a scenario.",
   inputSchema: z
     .object({
@@ -49,11 +50,14 @@ interface Args extends ToolParams, ScenarioArgs {
 
 export function forecastOrdersHandler({ weeks, runs, outageProbability, outageWeeksMin, outageWeeksMax, startWeek, add, remove, capacityScale, ...params }: Args) {
   const m = market(params, { add, remove, capacityScale });
+  // Printed as well as simulated, so a max below the min is described as the
+  // range that actually ran rather than the one that was asked for.
+  const outageMax = Math.max(outageWeeksMin, outageWeeksMax);
   const sim = simulate(m, {
     weeks,
     runs,
     outageProbability,
-    outageWeeks: [outageWeeksMin, Math.max(outageWeeksMin, outageWeeksMax)],
+    outageWeeks: [outageWeeksMin, outageMax],
     startWeek,
     seed: DEFAULT_SIMULATION.seed,
   });
@@ -67,30 +71,35 @@ export function forecastOrdersHandler({ weeks, runs, outageProbability, outageWe
     return `- ${dcNames.get(dc)}: ${parts}`;
   });
 
-  // Weekly table: per DC, total across categories with p10–p90 on the total of the main category.
+  // Mean and observed peak rather than a p10–p90 band: outages are rare
+  // enough that both tails land on the no-outage point mass, so the band came
+  // out zero-width and to one side of the mean rather than around it — above
+  // it where an outage drags the average down, below it where a reroute from
+  // the other center lifts the average instead. At the defaults not one of the
+  // 52 cells contained the mean. The peak is the reroute week capacity has to
+  // survive, which is what a supplier conversation is actually about.
   const rows = sim.weekly.map((w) => {
     const cells = m.dcs.map((d) => {
-      const mean = Object.values(w.mean[d.id] ?? {}).reduce((a, b) => a + b, 0);
-      const lo = Object.values(w.p10[d.id] ?? {}).reduce((a, b) => a + b, 0);
-      const hi = Object.values(w.p90[d.id] ?? {}).reduce((a, b) => a + b, 0);
-      return `${money(mean)} (${money(lo)}–${money(hi)})`;
+      const t = w.total[d.id];
+      return `${money(t.mean)} (peak ${money(t.peak)})`;
     });
     return `| ${w.week} | wk ${w.calendarWeek} | ${cells.join(" | ")} | ${money(w.lost)} |`;
   });
 
   return text(
     [
-      `Order forecast: ${weeks} weeks from calendar week ${startWeek}, ${runs} runs, outage chance ${pct(outageProbability)}/week lasting ${outageWeeksMin}–${outageWeeksMax} weeks.${describeScenario(resolveOverrides({ add, remove, capacityScale }))}`,
+      `Order forecast: ${weeks} weeks from calendar week ${startWeek}, ${runs} runs, outage chance ${pct(outageProbability)}/week lasting ${outageWeeksMin}–${outageMax} weeks.${describeScenario(resolveOverrides({ add, remove, capacityScale }))}`,
       ``,
       `Expected orders over the horizon (${money(sim.totals.horizonRevenue)} total; expected lost revenue ${money(sim.totals.expectedLost)}):`,
       ...totals,
       `Runs with at least one outage: ${Object.entries(sim.totals.outageRuns).map(([dc, s]) => `${dcNames.get(dc)} ${pct(s)}`).join(", ")}.`,
       ``,
-      `| # | week | ${m.dcs.map((d) => `${d.name} mean (p10–p90)`).join(" | ")} | expected lost |`,
+      `| # | week | ${m.dcs.map((d) => `${d.name} mean (peak)`).join(" | ")} | expected lost |`,
       `|---|---|${m.dcs.map(() => "---").join("|")}|---|`,
       ...rows,
       ``,
-      `Weekly figures are retail-dollar equivalents shipped; tell suppliers the mean and plan capacity for the p90.`,
+      `Weekly figures are retail-dollar equivalents shipped, across all categories at that center; tell suppliers the mean and plan capacity for the peak, which is the heaviest week seen in ${runs} runs.`,
+      `Lost revenue is demand the network could not ship: an outage with no spare capacity to reroute into, or a seasonal week running past a center's own weekly capacity. The annual lost-to-caps figure carries no outages and compares an average week to capacity, so a calm horizon here can still show a loss where that figure shows none.`,
     ].join("\n")
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { BLUE, COMPETITOR_COLOR, DC_COLOR, GREEN, NEUTRAL, ORANGE, STORE_SLOTS, STORE_TYPE_COLORS, money, type Mode } from "./scales";
+import { BLUE, COMPETITOR_COLOR, DC_COLOR, GREEN, NEUTRAL, ORANGE, STORE_TYPE_COLORS, money, storeColor, type Mode } from "./scales";
 import type { Store } from "@/lib/model/types";
 import styles from "./Legend.module.css";
 
@@ -9,7 +9,7 @@ export function Legend({ mode, breaks, stores }: { mode: Mode; breaks: number[];
   if (mode === "share") {
     ["none", "under 10%", "10 to 25%", "25 to 50%", "over 50%"].forEach((l, i) => rows.push({ color: GREEN[i], label: l }));
   } else if (mode === "primary") {
-    stores.forEach((s, i) => rows.push({ color: STORE_SLOTS[i % STORE_SLOTS.length], label: s.name }));
+    stores.forEach((s, i) => rows.push({ color: storeColor(i), label: s.name }));
     rows.push({ color: NEUTRAL, label: "no store of ours in reach" });
   } else {
     const cols = mode === "specialty" ? ORANGE : BLUE;

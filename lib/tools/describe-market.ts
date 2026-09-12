@@ -45,7 +45,7 @@ export function describeMarketHandler() {
         dcs.map((d) => `${d.name} (${d.id}) traditional ${money(d.capacity.traditional)}/wk cap`).join("; ") + `.`,
       `- Competitors: ${loadCompetitors().length} candy/confectionery shops from OpenStreetMap, treated as general stores.`,
       ``,
-      `All dollar figures are model outputs from mock assumptions (base spend, costs, capacities); the demographics are real.`,
+      `All dollar figures are model outputs from mock assumptions: base spend, store costs, the distribution centers and their capacities, and the chain itself with the stores listed above. Demographics, boundaries and competitors are real.`,
     ].join("\n")
   );
 }

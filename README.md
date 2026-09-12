@@ -38,17 +38,21 @@ Stores, distribution centers and competitors are markers. Pick a store type and 
 
 **Capture.** A Huff gravity model: outlet attraction = size^α ÷ distance^β within a reach radius, and each tract's category spend splits among the outlets carrying that category in proportion to attraction, with a constant outside option for grocery and online. General stores carry traditional; specialty stores carry their segments; OpenStreetMap candy shops are competitors. Two of our stores near one tract split it, so cannibalization is in the numbers, not a footnote.
 
-**Supply.** Each store draws from its nearest distribution center. Weekly demand per center and category is compared with capacity; the fill rate scales every member store's revenue for that category. Specialty caps are tight, traditional loose.
+**Supply.** Each store draws from its nearest distribution center. Weekly demand per center and category — annual capture divided by 52, so an average week — is compared with capacity; the fill rate scales every member store's revenue for that category. Specialty caps are tight, traditional loose. An average week is not the worst week: at baseline every category clears its cap, so the market reports nothing lost, while a calm 52-week forecast still loses $114,579 in the Halloween and Christmas weeks, when demand runs past a cap the average week clears. `forecast_orders` is where a seasonal peak shows up.
 
-**Site selection.** Greedy by revenue gain per dollar of capital over tract-centroid candidates of each store type. Each step screens candidates by uncaptured demand in reach, fully re-runs the market for a shortlist per type, and keeps the best gain per dollar that clears a minimum. With default costs the optimizer opens general stores until the traditional caps bind, then switches to specialty stores carrying the strongest local segments, which is the two-layer go-to-market falling out of the arithmetic.
+**Site selection.** Greedy by revenue gain per dollar of capital over tract-centroid candidates of each store type. Each step screens candidates by uncaptured demand in reach that their center can still ship, fully re-runs the market for a shortlist per type, and keeps the best gain per dollar that clears a minimum. With default costs and capacities that comes out as four general stores — by which point both centers are routed more traditional candy than they can ship (fill rates 0.94 and 0.96) and a fifth general store adds nothing — and then specialty stores carrying the strongest local segments, which is the two-layer go-to-market falling out of the arithmetic.
 
-**Forecast.** Monte Carlo over weeks with a seasonal index (Halloween week 2.4×, Christmas up to 1.9×, Valentine's 1.7×, Easter 1.4×) and random center outages that reroute to spare capacity elsewhere. Fixed seed. Reports mean and p10/p90 orders per center and category and expected lost revenue, so a buyer can commit the mean and plan for the p90.
+Two bounds keep a run finite: at most 40 picks, and eight seconds of wall clock so the hosted endpoint answers inside its timeout. Either one truncates the plan rather than reporting a finished one, and when a truncated plan leaves capital unspent `find_sites` says which bound stopped it.
+
+**Forecast.** Monte Carlo over weeks. The seasonal index is a ratio against an ordinary week — 2.4× in Halloween week 44, 1.6× in the run-up weeks 42–43, 1.9× in Christmas weeks 51–52 and 1.4× in 49–50, 1.7× for Valentine's in weeks 6–7, 1.4× for Easter in weeks 13–15, and 0.7× in week 1, the post-holiday trough — and the simulation divides it by its own 52-week mean, so a horizon redistributes annual demand instead of marking every week up by 14%. Each week a center can go down for one to three weeks; the volume it would have shipped healthy reroutes into the other centers' spare capacity, and what nobody can ship is lost revenue. Fixed seed. Per center and week the forecast reports the mean order and the heaviest week any run produced, plus expected lost revenue: commit the mean, size capacity for the peak. There is no p10–p90 band in the table because at the default 3%-a-week outage rate it is worthless: across a default 26-week run every cell of it came out zero-width, and not one contained the mean.
 
 Everything is implemented from the formulas in `lib/model/` with tests: synthetic tracts for demand and gravity, and integration tests over the committed data for the market, optimizer and simulation.
 
 ---
 
 ## Tools
+
+Nine tools are registered on both transports. `render_map` is a tenth that exists only on the local stdio server, because a serverless function has nowhere to write a file — so the hosted endpoint lists nine and a local `claude mcp` connection lists ten.
 
 | Tool | Purpose |
 |---|---|
@@ -60,10 +64,10 @@ Everything is implemented from the formulas in `lib/model/` with tests: syntheti
 | `store_performance` | Revenue by store and category; center utilization. |
 | `find_sites` | Budget-constrained expansion: which stores, where, of which type, net of cannibalization and caps. |
 | `what_if` | Baseline versus a scenario of added or closed stores and scaled capacity. |
-| `forecast_orders` | Weekly supplier orders per center and category with p10/p90 and expected losses. |
-| `render_map` | **Local only.** Writes a self-contained HTML map of the scenario. |
+| `forecast_orders` | Weekly supplier orders per center: the mean week and the heaviest week, horizon totals by category, expected losses. |
+| `render_map` | **Local (stdio) only.** Writes a self-contained HTML map of the scenario. |
 
-Every tool accepts the same optional model parameters and scenario (`add`, `remove`, `capacityScale`), so a conversation can chain "find sites, test them, forecast the orders" with one set of assumptions. Three prompts package those chains: `expansion_plan`, `segment_brief`, `supplier_forecast`. Resources expose the manifest and the method.
+Every tool that runs the market accepts the same optional model parameters and scenario (`add`, `remove`, `capacityScale`), so a conversation can chain "find sites, test them, forecast the orders" with one set of assumptions. The two that don't are `describe_market`, which takes no arguments, and `load_view`, which takes only the link. Three prompts package those chains: `expansion_plan`, `segment_brief`, `supplier_forecast`. Resources expose the manifest and the method.
 
 ### Remote
 
@@ -87,14 +91,14 @@ Then ask: *"Plan a $10M expansion, forecast the orders, and render the map."* Th
 
 | Source | Used for | Licence |
 |---|---|---|
-| Census cartographic boundaries 2024 | Tracts and places | Public domain |
+| Census cartographic boundaries 2024 | Tracts, and the place covering most of each tract | Public domain |
 | ACS 5-year 2024 | Population, households, income, children, foreign-born by region (B05006) | Public domain |
-| ACS 5-year 2019 + tract relationship file | Population growth on 2020 tracts | Public domain |
+| ACS 5-year 2019 + tract relationship file | Population change on 2020 tracts, apportioned by land area | Public domain |
 | OpenStreetMap via Overpass | Competing candy and confectionery shops | ODbL |
 | Nominatim, Census geocoder | Place search at request time | ODbL / public domain |
 | Esri gray canvas | Map tiles | Free with attribution |
 
-Mock inputs, all in `data/` and meant to be edited: five stores, two distribution centers with weekly capacity per category, $120 base spend per household, $1.5M for a general store and $1.0M for a specialty store.
+Mock inputs, meant to be edited: five stores and two distribution centers with weekly capacity per category in `data/`, and the model's own defaults in `lib/model/` — $120 base spend per household, $1.5M for a general store, $1.0M for a specialty store.
 
 The B05006 region cells are resolved by label from the table definition at pipeline time, because their numbering shifts between vintages.
 
@@ -105,7 +109,7 @@ The B05006 region cells are resolved by label from the table definition at pipel
 ```
 pipeline/        tracts + places, ACS with heritage segments and the 2010→2020 crosswalk, competitors
 data/            committed outputs plus mock stores and distribution centers
-lib/spatial/     haversine, stats, TSP, Moran (shared with atl-mcp)
+lib/spatial/     haversine distance, seeded PRNG, small stats helpers
 lib/model/       demand, gravity, market, optimizer, simulate, params
 lib/tools/       MCP tools, prompts, resources, one registration for both transports
 lib/render/      the self-contained HTML map
@@ -137,5 +141,6 @@ npm run test:client -- stdio                   # every tool over stdio, plus ren
 - Straight-line distance; a real gravity model would use drive times.
 - Heritage is foreign-born only. Second-generation communities that keep their candy preferences are invisible to it, and the segments are broad by design.
 - OpenStreetMap has about twenty candy shops for the region; real competition includes every grocery and pharmacy, which the outside option stands in for.
-- The optimizer is greedy; the forecast is a simple two-center reroute. Both are honest about being heuristics.
+- The optimizer is greedy: one store per step, no revisiting an earlier pick, and it gives up at 40 picks or eight seconds of wall clock, so a large budget can come back with a truncated plan rather than the best one; when that happens with capital left over, `find_sites` names the bound that stopped it. The forecast is a simple reroute between the two centers. Both are heuristics.
+- Population change since 2019 is approximate for most tracts. The 2010→2020 re-delineation split nearly every growing tract, so a 2020 tract's 2019 population is apportioned from its donor tracts by land area, which assumes each donor's residents were spread evenly across it. Only 250 of the 1,200 tracts have a single unchanged donor; `pop2019Basis` on each tract marks which. The region-wide +5.2% holds, but an individual tract's swing can be an artifact of the split rather than anything that happened.
 - Spend, costs and capacities are placeholders.

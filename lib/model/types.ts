@@ -8,7 +8,6 @@ export interface TractProps {
   landKm2: number;
   cx: number;
   cy: number;
-  neighbors: string[];
   pop: number;
   households: number;
   medianIncome: number | null;
@@ -18,6 +17,8 @@ export interface TractProps {
   /** Heritage segment id → share of population born in that region group. */
   heritage: Record<string, number>;
   pop2019: number | null;
+  /** How pop2019 was derived: "direct" from one unchanged prior tract, or "apportioned" from several by land area, which makes the change since 2019 approximate. */
+  pop2019Basis?: "direct" | "apportioned";
 }
 
 export type StoreType = "general" | "specialty";
@@ -103,6 +104,8 @@ export interface StoreResult {
   name: string;
   type: StoreType;
   dc: string;
+  /** The segments the store carries, after an empty list is auto-picked. */
+  segments: string[];
   /** Annual revenue captured before supply caps, by category. */
   demandBy: Record<string, number>;
   demand: number;
@@ -136,11 +139,16 @@ export interface MarketResult {
   stores: StoreResult[];
   dcs: DcResult[];
   totals: {
+    /** Annual candy spend across every tract and category. */
     marketDemand: number;
     marketByCategory: Record<string, number>;
+    /** Annual dollars our stores capture before supply caps. */
     ourDemand: number;
+    /** After supply caps. */
     ourRevenue: number;
+    /** ourRevenue / marketDemand, so it answers "how much of the market do we actually sell" and moves when supply changes. */
     ourShare: number;
+    /** Captured but not supplied: ourDemand − ourRevenue. */
     lostToCaps: number;
   };
   segments: Array<{ id: string; label: string; markets: number; population: number; demand: number }>;

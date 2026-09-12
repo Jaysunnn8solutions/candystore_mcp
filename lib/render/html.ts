@@ -36,7 +36,9 @@ export function renderMapHtml(result: MarketResult, overrides: ScenarioOverrides
   const manifest = loadManifest();
   const tracts = loadTracts();
   const stores = effectiveStores(overrides);
-  const storeRevenue = new Map(result.stores.map((s) => [s.id, s]));
+  // The run's own store results: their segments are the ones actually
+  // carried, where the raw store's list is still empty after an auto-pick.
+  const storeResults = new Map(result.stores.map((s) => [s.id, s]));
   const byGeoid = new Map(result.tracts.map((t) => [t.geoid, t]));
 
   // Slim payload: geometry plus the few numbers the page colours by.
@@ -68,7 +70,7 @@ export function renderMapHtml(result: MarketResult, overrides: ScenarioOverrides
     segment: opts.segment ?? "latam",
     segments: manifest.segments,
     features,
-    stores: stores.map((s) => ({ ...s, revenue: storeRevenue.get(s.id)?.revenue ?? 0, fill: storeRevenue.get(s.id)?.fillRate ?? 1 })),
+    stores: stores.map((s) => ({ ...s, segments: storeResults.get(s.id)?.segments ?? s.segments, revenue: storeResults.get(s.id)?.revenue ?? 0, fill: storeResults.get(s.id)?.fillRate ?? 1 })),
     dcs: loadDcs().map((d) => ({ id: d.id, name: d.name, lon: d.lon, lat: d.lat, result: result.dcs.find((x) => x.id === d.id) })),
     competitors: loadCompetitors(),
     totals: result.totals,
@@ -133,8 +135,11 @@ export function renderMapHtml(result: MarketResult, overrides: ScenarioOverrides
   const money = (x) => Math.abs(x) >= 1e6 ? '$' + (x/1e6).toFixed(1) + 'M' : Math.abs(x) >= 1e3 ? '$' + Math.round(x/1e3) + 'k' : '$' + Math.round(x);
   const pct = (x) => (x*100).toFixed(x < 0.1 ? 1 : 0) + '%';
   $('title').textContent = D.title;
-  $('tiles').innerHTML = '<div class="tile"><b>' + money(D.totals.marketDemand) + '</b>market / yr</div><div class="tile"><b>' + money(D.totals.ourRevenue) + '</b>our revenue</div><div class="tile"><b>' + pct(D.totals.ourShare) + '</b>share</div>';
-  const MODES = [['demand','Demand'],['specialty','Specialty'],['share','Our share'],['uncaptured','Uncaptured']];
+  // Two different shares on one page: the tile is chain revenue after supply
+  // caps over all regional spend, the layer is what a tract's own stores draw
+  // before caps. Both labels say which, because "share" alone read as one number.
+  $('tiles').innerHTML = '<div class="tile"><b>' + money(D.totals.marketDemand) + '</b>market / yr</div><div class="tile"><b>' + money(D.totals.ourRevenue) + '</b>our revenue</div><div class="tile"><b>' + pct(D.totals.ourShare) + '</b>share of spend we sell</div>';
+  const MODES = [['demand','Demand'],['specialty','Specialty'],['share','We capture'],['uncaptured','Uncaptured']];
   let mode = D.mode, segment = D.segment;
   const BLUE = ['#cde2fb','#86b6ef','#3987e5','#1c5cab','#0d366b'];
   const ORANGE = ['#fbe3d6','#f5b592','#eb6834','#b84a1f','#7a2f11'];
@@ -178,8 +183,12 @@ export function renderMapHtml(result: MarketResult, overrides: ScenarioOverrides
   $('segment').innerHTML = D.segments.map(s => '<option value="' + s.id + '"' + (s.id === segment ? ' selected' : '') + '>' + s.label + '</option>').join('');
   $('segment').onchange = (e) => { segment = e.target.value; refresh(); };
   $('stores').innerHTML = '<tr><th>Store</th><th>Type</th><th>Revenue/yr</th></tr>' + D.stores.map(s => '<tr><td>' + s.name + (s.proposed ? ' <span class="muted">(proposed)</span>' : '') + '</td><td>' + s.type + '</td><td>' + money(s.revenue) + (s.fill < .999 ? ' <span class="muted">fill ' + pct(s.fill) + '</span>' : '') + '</td></tr>').join('');
-  $('dcs').innerHTML = '<tr><th>Center</th><th>Category</th><th>Used</th></tr>' + D.dcs.flatMap(d => Object.entries(d.result ? d.result.weeklyDemand : {}).filter(([,v]) => v > 0).map(([c, v]) => '<tr><td>' + d.name + '</td><td>' + c.replace('specialty:', '') + '</td><td>' + pct(Math.min(1, v / Math.max(1, d.result.capacity[c] || 0))) + '</td></tr>')).join('');
-  $('foot').textContent = 'Generated ' + D.generated.slice(0, 16).replace('T', ' ') + '. Demographics: ACS 5-year via the Census Bureau. Competitors: OpenStreetMap. Spend, costs and capacities are mock assumptions.';
+  // Unclamped on purpose: a center working past its weekly capacity is the
+  // thing to see, and clamping it to "100%" hid the shortfall. Mirrors
+  // utilization() in lib/tools/shared.ts.
+  const used = (v, cap) => cap > 0 ? pct(v / cap) : 'no capacity';
+  $('dcs').innerHTML = '<tr><th>Center</th><th>Category</th><th>Used</th></tr>' + D.dcs.flatMap(d => Object.entries(d.result ? d.result.weeklyDemand : {}).filter(([,v]) => v > 0).map(([c, v]) => '<tr><td>' + d.name + '</td><td>' + c.replace('specialty:', '') + '</td><td>' + used(v, d.result.capacity[c] || 0) + '</td></tr>')).join('');
+  $('foot').textContent = 'Generated ' + D.generated.slice(0, 16).replace('T', ' ') + '. Demographics: ACS 5-year via the Census Bureau. Competitors: OpenStreetMap. The chain itself is fictional: its stores, base spend, store costs, distribution centers and capacities are mock assumptions.';
   renderModes();
 })();
 </script>
