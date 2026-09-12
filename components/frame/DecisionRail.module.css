@@ -1,0 +1,436 @@
+/*
+ * What you are deciding. The roster and the picks list share one flex budget:
+ * every optimizer pick joins the scenario, so one large run fills both at once
+ * and a fixed cap on either would fail on the most likely first action.
+ */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  height: 100%;
+  padding: 12px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  /* A safety valve on a short viewport, the same as the lens rail: clipping a
+     control out of existence is worse than a scrollbar. Horizontal is hidden
+     explicitly, or a sub-pixel overflow turns `visible` into a second bar. */
+  overflow: hidden auto;
+  scrollbar-gutter: stable;
+}
+
+/* Armed placement mode rings the whole rail, so the state is visible even when
+   the eye is on the map. */
+.rail[data-armed="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.addRow {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.rosterKeys {
+  flex: none;
+  margin-top: -2px;
+}
+
+/*
+ * The roster and the picks list share one flex budget: every optimizer pick
+ * joins the scenario, so one large run fills both at once. Neither grows past
+ * its content — the slack collects in the spacer below, so a five-store roster
+ * on a tall screen reads as a short list rather than a mostly-empty box.
+ */
+/* Shrinks first and fastest. The roster is a list with its own scroller, so
+   giving up height costs it a row; the plan block below is all controls, and
+   the one thing that must never fall below the fold is its button. */
+.roster {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 4 auto;
+  min-height: 78px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.spacer {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* With a plan on screen both lists are results of the same run, so they share
+   the rail's space evenly and the spacer gives up its own. */
+.rail[data-planned="true"] .spacer {
+  flex: 0 0 0;
+}
+
+.rail[data-planned="true"] .roster {
+  flex: 1 2 auto;
+}
+
+.storeRow {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) 62px 24px;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+
+.storeName {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.storeRow[data-closed="true"] .storeName {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.storeFig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.storeMoney {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.divider {
+  height: 0;
+  border-top: 1px solid var(--border);
+  flex: none;
+  margin: 2px 0;
+}
+
+.closedHead {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+/* ---------- Expansion plan ---------- */
+
+.planBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+/* With a plan it carries a scrollable picks list, so it may flex again. */
+.rail[data-planned="true"] .planBlock {
+  flex: 1 1 auto;
+}
+
+.budgetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+
+.budgetRow > label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* A 4px meter that gives the budget number magnitude against its $500M cap,
+   with four tick buttons for the common amounts. */
+.ruler {
+  position: relative;
+  height: 21px;
+  flex: none;
+}
+
+.rulerTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-track);
+}
+
+.rulerFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.rulerTick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  background: var(--muted);
+  cursor: pointer;
+}
+
+/* 1px of ink, 25x24 of pointer target — it was 23px wide, one short. Weighted
+   downwards over the tick's own label, which is not interactive, rather than
+   upwards over the budget stepper's buttons. */
+.rulerTick::before {
+  content: "";
+  position: absolute;
+  inset: -3px -12px -11px;
+}
+
+/* The track, the fill and the printed amounts are decoration painted over the
+   ticks' own targets; without this they swallow most of each tick's 24px. */
+.rulerTrack,
+.rulerFill,
+.rulerLabel {
+  pointer-events: none;
+}
+
+.rulerLabel {
+  position: absolute;
+  top: 9px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* The $500M tick sits at 100%, where a symmetric box runs into the rail's own
+   padding and gets clipped, so it takes all 24px to the left instead. */
+.rulerTickLast::before {
+  inset: -3px 0 -11px -24px;
+}
+
+.costRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  flex: none;
+}
+
+/*
+ * The switch is the only element in the row that names what the number applies
+ * to, so it is the last thing squeezed, not the first: at 1024px it used to
+ * clip to "Ge…" and "S…", leaving the colour dot to carry the meaning. It gets
+ * a floor wide enough for "Specialty" and the stepper gives up the width — it
+ * is showing three digits.
+ */
+.costRow > button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 6px;
+}
+
+.costName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.costAfford {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .costAfford {
+    font-size: 10px;
+  }
+
+  /* The stepper is the one that shrinks, so the switch can print its whole
+     word. Three digits still fit in the number box. */
+  .costRow {
+    gap: 3px;
+  }
+
+  .costRow > button {
+    padding: 0 5px;
+  }
+
+  .costRow .costStepper {
+    --step-input-w: 18px;
+    --affix-pad: 1px;
+  }
+}
+
+.costRow[data-off="true"] .costAfford {
+  color: var(--muted);
+}
+
+/*
+ * The only filled accent button in the application, so it is the one place the
+ * label has to survive the fill. 13px/650 is not WCAG large text, so #fff needs
+ * 4.5:1 and --accent gave 4.42:1 light / 3.64:1 dark. The ground darkens rather
+ * than the label lightening — a dark ink here would lose the filled-button
+ * read — and --accent comes back as a 1px ring, which is what keeps the
+ * darkest step of the ramp identifiable against a dark rail.
+ */
+.planButton {
+  flex: none;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.planButton:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.planButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.verdict {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  flex: none;
+}
+
+.picks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 60px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 34px;
+}
+
+.pickHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pickWhere {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickGain {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  flex: none;
+}
+
+.note {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  flex: none;
+}
+
+.noteLink {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.emptyPlan {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-height: 800px) {
+  .rail {
+    gap: 5px;
+    padding: 10px;
+  }
+
+  .planBlock {
+    gap: 4px;
+  }
+
+  .emptyPlan {
+    font-size: 10px;
+  }
+}
+
+/* The same discipline the lens rail applies at this height, so the roster gives
+   up rows to its own scroller rather than the whole rail starting to scroll. */
+@media (max-height: 760px) {
+  .rail {
+    gap: 4px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 999px) {
+  .rail {
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .roster,
+  .picks {
+    overflow: visible;
+    max-height: none;
+  }
+
+  .planBlock {
+    flex: none;
+  }
+}

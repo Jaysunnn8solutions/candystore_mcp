@@ -1,4 +1,4 @@
-import { parseViewHash, serializeViewHash, type ViewState } from "@/lib/view-state";
+import { parseViewHash, readViewHash, serializeViewHash, type ParsedView, type ViewState } from "@/lib/view-state";
 
 export { DEFAULT_VIEW } from "@/lib/view-state";
 export type { ViewState } from "@/lib/view-state";
@@ -6,6 +6,15 @@ export type { ViewState } from "@/lib/view-state";
 export function readHash(): ViewState {
   if (typeof window === "undefined") return parseViewHash("");
   return parseViewHash(window.location.hash);
+}
+
+/**
+ * The same parse, keeping what it had to throw away. A stale or hand-edited
+ * link degrades to the parts that still work, and until now nothing said so.
+ */
+export function readHashFull(): ParsedView {
+  if (typeof window === "undefined") return readViewHash("");
+  return readViewHash(window.location.hash);
 }
 
 export function writeHash(v: ViewState): void {

@@ -18,14 +18,30 @@ export const NEUTRAL = "#e1e0d9";
 export const NO_DATA = "#c3c2b7";
 
 /**
- * Categorical slots for trade areas, in the validated palette order, minus the
- * hues the marker rows of the same legend own: blue for general stores,
- * magenta for specialty, yellow for distribution centers, gray for
- * competitors. Sharing one would put two meanings on a single swatch. The
- * purple stands in for the three that dropped out; it measures clear of every
- * marker colour and of the five hues kept, on light and dark surfaces alike.
+ * Categorical slots for trade areas. A choropleth is an all-pairs form — any
+ * two trade areas can share a boundary and any two legend rows get compared —
+ * so these are validated with `--pairs all`, not adjacent, in light AND dark.
+ * The previous set passed adjacent-only and hid two hard failures: #008300 and
+ * #eb6834 were ΔE 3.2 apart under protanopia, and #e34948 and #eb6834 ΔE 7.1
+ * apart under normal vision. Re-picking two slots could not fix it, because the
+ * dark lightness band also rejected #4a3aa7 and #eb6834, so all six moved.
+ *
+ * Six mutually separable hues is the edge of the gamut: holding them inside the
+ * band both modes share (OKLCH L 0.48–0.67) forces high chroma, and four of the
+ * six then clear the dark surface by only 2.4–2.9:1. That is a relief
+ * obligation, not a dismissable warning, which is why MarketMap names every
+ * trade area on the map itself in this layer rather than leaving the swatch as
+ * the only route back to a store.
+ *
+ * Still off the hues the marker rows of the same legend own: blue for general
+ * stores, pink for specialty, yellow for distribution centers, gray for
+ * competitors. Sharing one would put two meanings on a single swatch.
+ *
+ *   node scripts/validate_palette.js "<these six>" --mode light --pairs all
+ *   node scripts/validate_palette.js "<these six>" --mode dark --surface "#1a1a19" --pairs all
+ *   worst all-pairs ΔE 8.8 (deutan), 15.7 (normal) — both above the gates.
  */
-export const STORE_SLOTS = ["#eb6834", "#1baf7a", "#4a3aa7", "#008300", "#a63bad", "#e34948"];
+export const STORE_SLOTS = ["#e509bc", "#249c03", "#5e2ff9", "#a34305", "#01714c", "#9a059e"];
 
 function darken(hex: string, factor: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -44,14 +60,29 @@ export function storeColor(i: number): string {
   return cycle === 0 ? base : darken(base, 1 / (1 + cycle * 0.45));
 }
 
-/** Store id → colour, so the map and the legend cannot disagree. */
-export function storeColors(stores: Array<{ id: string }>): Map<string, string> {
-  return new Map(stores.map((s, i) => [s.id, storeColor(i)]));
+/**
+ * Store id → colour, so the map and the legend cannot disagree.
+ *
+ * The roster passed in must be the whole one — closed stores included, in a
+ * stable order — not the stores currently drawn. Colour follows the entity,
+ * never its rank: when the slot came from a position in the visible list,
+ * closing one store handed its hue to the next one down and every store after
+ * it, so two screenshots of the same map before and after a closure meant
+ * different things with no visible cue. A closed store holds its slot instead.
+ */
+export function storeColors(roster: Array<{ id: string }>): Map<string, string> {
+  return new Map(roster.map((s, i) => [s.id, storeColor(i)]));
 }
 
 export const STORE_TYPE_COLORS = { general: "#2a78d6", specialty: "#e87ba4" };
 export const DC_COLOR = "#eda100";
 export const COMPETITOR_COLOR = "#898781";
+/**
+ * A searched place is not one of our things, so it does not wear a marker hue.
+ * It used to inline DC yellow, which drew it as a distribution center that was
+ * missing from the legend.
+ */
+export const SEARCH_COLOR = "#4a3aa7";
 
 /** Quintile breaks over positive values. */
 export function quintiles(values: number[]): number[] {
@@ -100,3 +131,29 @@ export function utilization(demand: number, capacity: number): string {
 export function fmtNum(x: number | null | undefined): string {
   return x == null ? "n/a" : Math.round(x).toLocaleString("en-US");
 }
+
+export type MeterLevel = "ok" | "tight" | "over";
+
+/**
+ * Severity for a demand-against-capacity meter, in one place so the deck, the
+ * disclosure summaries and the tooltips cannot disagree. Thresholds match the
+ * ones the old sidebar expressed inline in a style attribute. The level names a
+ * band; which token paints it is the stylesheet's business, so the severity
+ * colours stay themeable.
+ */
+export function meterLevel(demand: number, capacity: number): MeterLevel {
+  if (capacity <= 0) return "over";
+  const u = demand / capacity;
+  return u >= 0.999 ? "over" : u > 0.8 ? "tight" : "ok";
+}
+
+/** Weeks the seasonal index lifts hardest, for the year strip's marks. */
+export const SEASON_PEAKS: Array<{ from: number; to: number; label: string }> = [
+  { from: 42, to: 44, label: "Halloween" },
+  { from: 49, to: 52, label: "Christmas" },
+];
+
+/** First ISO-ish week of each month, for the forecast's month ruler. */
+export const MONTH_START_WEEK = [1, 5, 9, 14, 18, 23, 27, 31, 36, 40, 44, 49];
+
+export const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

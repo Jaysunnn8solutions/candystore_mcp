@@ -1,0 +1,809 @@
+/*
+ * What supply can actually ship, and what the calibration says. The recessed
+ * surface and the smallest type in the app: the nine dials read as one
+ * instrument because none of them outranks another.
+ */
+
+.deck {
+  --cal-h: 40px;
+
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) var(--cal-h);
+  height: 100%;
+  background: var(--deck);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.deckTop {
+  display: grid;
+  grid-template-columns: 216px 216px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  padding: 6px 12px 4px;
+  overflow: hidden;
+}
+
+/* Three or more centres is a data change, not a code change, so it must not be
+   able to break the layout: past two they share one card behind a picker. */
+.deckTop[data-many="true"] {
+  grid-template-columns: 216px minmax(0, 1fr);
+}
+
+/* ---------- DC card ---------- */
+
+.dcCard {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dcHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+  flex: none;
+}
+
+.dcName {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.capRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  flex: none;
+}
+
+.capRow > label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meters {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: none;
+  margin-top: 2px;
+}
+
+/* A closed panel hides its controls, never its state: the disclosure prints
+   the worst hidden row and carries its pill. */
+/* 24px of row, not 18: the card clips its own overflow, so a pseudo-element
+   reaching past the button for the rest of the target would be cut away. */
+.moreRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.moreRow:hover {
+  color: var(--text-secondary);
+}
+
+/* Fixed and mounted on the body, because the deck clips its own overflow. */
+.capPop {
+  position: fixed;
+  z-index: 1200;
+  width: 300px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.capPop ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dcAnchor {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---------- Forecast column ---------- */
+
+/* 320px, not 192px, and the fields lay out two to a row inside it. The month
+   strip divides this column into twelve radios, and twelve 16px cells were
+   under the 24px target floor; two field rows instead of three is what buys
+   back the height the 26px steppers cost. The deck has horizontal room to
+   spare at every desktop width, so this is the cheap axis to spend. */
+.forecast {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.forecastControls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fcTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+}
+
+.fcTop > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Two label-and-stepper pairs per row: the column is 320px wide and the height
+   is what is scarce. */
+.fcFields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1px 6px;
+  flex: none;
+  min-width: 0;
+}
+
+.fcFields > label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.fcRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-width: 0;
+  margin-top: 3px;
+}
+
+.runButton {
+  flex: 1 1 auto;
+  min-height: 26px;
+}
+
+.forecastPanel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.forecastHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+}
+
+.viewSwitch {
+  flex: none;
+  width: 108px;
+  margin-left: auto;
+}
+
+.verdict {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  flex: none;
+}
+
+/* ---------- Month ruler ---------- */
+
+.ruler {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  height: 22px;
+}
+
+/* The empty chart column draws the same year at full width, without the month
+   buttons: the control lives once, in the column beside it. There it has the
+   room to name its own peaks. */
+.rulerWide {
+  height: 36px;
+}
+
+.rulerArt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  width: 100%;
+}
+
+.rulerCells {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  display: flex;
+}
+
+.rulerCells button {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+}
+
+/* 22px of ink, 24px of target, all of it taken from the gap above the strip —
+   below it the forecast fields paint later and would win the overlap. */
+.rulerCells button::before {
+  content: "";
+  position: absolute;
+  inset: -2px 0 0;
+}
+
+.rulerCells button:hover {
+  background: var(--hover);
+}
+
+.rulerCells button[aria-checked="true"] {
+  background: var(--text-primary);
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.rulerKeys {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24px;
+  height: 12px;
+}
+
+/* Anchored by the right edge, at the week the peak ends: the last peak runs to
+   week 52, so a left-anchored caption would leave the column. */
+.rulerKeys span {
+  position: absolute;
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+  transform: translateX(-100%);
+}
+
+/* ---------- Facets ---------- */
+
+.facets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* A 12px gutter at the top, which is where the season captions sit. Inside the
+   plot they covered two or three weeks of the bars they were naming and got
+   cut by its top edge; in the legend row above they collide with the keys
+   whenever the window puts a band near x=0.3 of the plot. */
+.facetBody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-top: 12px;
+}
+
+/* The label column holds the longest centre name rather than ellipsising it:
+   it is what attributes a cap annotation to the right centre, and the plot has
+   ~700px to give 26 of them up from. */
+.facet,
+.lostStrip,
+.axis {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 74px;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The two facets absorb whatever height the deck leaves after the legend, the
+   loss strip and the axis, so the chart cannot overflow its region. */
+.facet {
+  flex: 1 1 auto;
+  min-height: 28px;
+  max-height: 48px;
+}
+
+.lostStrip {
+  flex: none;
+  height: 12px;
+}
+
+.axis {
+  flex: none;
+  height: 13px;
+}
+
+.facetName {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capLabel {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plot {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--hover);
+  box-shadow: inset 1px 0 0 var(--grid), inset -1px 0 0 var(--grid);
+}
+
+/* Above the plot, not inside it: at top 0 the chip sat on the tallest bars —
+   which is exactly where the seasons it names are — covering two or three weeks
+   of data and getting cut by the plot's own top edge. The legend row above the
+   facets is empty on its right, which is where these land. */
+.bandLabel {
+  position: absolute;
+  top: -12px;
+  z-index: 2;
+  transform: translateX(-100%);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  background: var(--deck);
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.capRule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--muted);
+}
+
+.cols {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: center;
+}
+
+.col[data-hover="true"] {
+  background: var(--hover);
+}
+
+.mean,
+.head {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  /* At most 24px thick, with a 4px band gap when the pitch is narrower. */
+  width: min(24px, calc(100% - 4px));
+  background: var(--fill);
+}
+
+.mean {
+  bottom: 0;
+}
+
+.mean[data-top="true"] {
+  border-radius: 4px 4px 0 0;
+}
+
+/* One hue, whatever the week does against the cap. This used to repaint itself
+   in --over when the peak crossed the cap rule, which is the swatch the legend
+   beside it gives to "lost" — one colour with two meanings inside one figure.
+   The cap rule the bar crosses is the honest signal and is already drawn. */
+.head {
+  background: var(--fill-soft);
+  border-radius: 4px 4px 0 0;
+}
+
+.lostTick {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1px;
+  width: 2px;
+  height: 9px;
+  background: var(--over);
+}
+
+.crosshairTip {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.crosshairTip strong {
+  color: var(--text-primary);
+}
+
+/* ---------- Weekly table ---------- */
+
+.tableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--deck);
+  border-bottom: 1px solid var(--border);
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table td {
+  text-align: right;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--grid);
+}
+
+/* ---------- Calibration strip ---------- */
+
+.calStrip {
+  display: grid;
+  grid-template-columns: auto repeat(9, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.calLegend {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.calChanged {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.calReset {
+  min-height: 24px;
+  font-size: 10px;
+  padding: 0 6px;
+}
+
+/* ---------- Board mode ---------- */
+
+.boardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.6fr;
+  gap: 14px;
+  height: 100%;
+  padding: 10px 14px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.boardGrid[data-many="true"] {
+  grid-template-columns: 1fr 1.6fr;
+}
+
+.boardCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.boardMeters {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.boardForecast {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .deckTop {
+    grid-template-columns: 196px 196px minmax(0, 1fr);
+  }
+
+  .facet,
+  .lostStrip,
+  .axis {
+    grid-template-columns: 72px minmax(0, 1fr) 64px;
+  }
+
+  .calLegend {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .deckTop {
+    grid-template-columns: 178px 178px minmax(0, 1fr);
+  }
+
+  /* The month strip still needs twelve 24px cells, so the controls column gives
+     up as little as the chart can spare. */
+  .forecast {
+    grid-template-columns: 296px minmax(0, 1fr);
+  }
+}
+
+/* The deck gives up height before the map does, so the controls tighten rather
+   than clip. The dial strip loses 6px; the forecast column loses its gaps. */
+@media (max-height: 760px) {
+  /* 38px, not 34px: a slider's own box is its pointer target and the dials keep
+     their 24px here. The two saved pixels come off the dial's label row. */
+  .deck {
+    --cal-h: 38px;
+  }
+
+  .deckTop {
+    padding: 5px 12px 3px;
+  }
+
+  .ruler {
+    height: 18px;
+  }
+
+  .rulerWide {
+    height: 30px;
+  }
+
+  .rulerArt,
+  .rulerCells {
+    height: 18px;
+  }
+
+  .rulerKeys {
+    top: 19px;
+  }
+
+  .rulerCells button {
+    font-size: 9px;
+  }
+
+  /* 18px of ink, still 24px of target. */
+  .rulerCells button::before {
+    inset: -6px 0 0;
+  }
+
+  .forecastControls {
+    gap: 1px;
+  }
+
+  .fcFields {
+    gap: 0 6px;
+  }
+
+  .fcRow {
+    margin-top: 2px;
+  }
+
+  .runButton {
+    min-height: 24px;
+  }
+
+  .capRow {
+    min-height: 19px;
+  }
+
+  .dcCard {
+    gap: 2px;
+  }
+
+  .dcHead {
+    min-height: 14px;
+  }
+
+  .facet {
+    min-height: 22px;
+  }
+
+  .meters {
+    gap: 2px;
+    margin-top: 1px;
+  }
+}
+
+@media (max-width: 999px) {
+  .deck {
+    grid-template-rows: auto auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .deckTop {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .forecast {
+    grid-template-columns: 1fr;
+  }
+
+  .dcCard {
+    overflow: visible;
+  }
+
+  .meters {
+    flex: none;
+  }
+
+  .tableWrap {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 800px) {
+  .calStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: auto;
+    padding: 8px 12px;
+    row-gap: 6px;
+  }
+
+  .calLegend,
+  .calReset {
+    grid-column: 1 / -1;
+  }
+
+  .rulerCells {
+    position: static;
+    flex-wrap: wrap;
+  }
+
+  .rulerCells button {
+    flex: 1 1 16%;
+    min-height: 24px;
+  }
+
+  .rulerArt,
+  .rulerKeys {
+    display: none;
+  }
+
+  .ruler {
+    height: auto;
+  }
+}

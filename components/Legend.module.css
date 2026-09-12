@@ -1,26 +1,121 @@
 .legend {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* One strip of five cells with 2px surface gaps, so the ramp reads as a scale
+   rather than five unrelated rows. */
+.ramp {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+}
+
+.ramp span {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--c);
+}
+
+.ramp span:first-child {
+  border-radius: 2px 0 0 2px;
+}
+
+.ramp span:last-child {
+  border-radius: 0 2px 2px 0;
+}
+
+/* Break values sit at the boundaries between cells, not under their middles. */
+.breaks {
+  position: relative;
+  height: 12px;
+}
+
+.breaks span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
 .row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 14px;
 }
 
 .swatch {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 3px;
   flex: none;
+  background: var(--c);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
-.outline {
+.round {
+  border-radius: 50%;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--grid);
+}
+
+/* The competitor row IS the switch, so the control sits on the meaning it
+   governs and costs one fewer row. */
+.compRow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  border: 0;
   background: transparent;
-  box-shadow: inset 0 0 0 2px var(--text-primary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.compRow:hover {
+  background: var(--hover);
+}
+
+.compRow[aria-checked="true"] {
+  color: var(--text-primary);
+}
+
+.check {
+  margin-left: auto;
+  font-size: 10px;
 }

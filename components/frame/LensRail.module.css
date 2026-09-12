@@ -1,0 +1,485 @@
+/*
+ * What you are looking at. The five layers cannot wrap here at any width, and
+ * all seven heritage segments are visible in every layer rather than hidden
+ * behind a select that only appears in one of them.
+ */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  /* A safety valve, not the design: at a 900px viewport there is 130px of slack
+     here. Crushing rows to 6px to avoid a scrollbar on a short laptop screen
+     would be worse than the scrollbar. */
+  overflow: hidden auto;
+  scrollbar-gutter: stable;
+}
+
+/* ---------- Search ---------- */
+
+.search {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  position: relative;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.search button {
+  flex: none;
+  min-width: 38px;
+}
+
+/* Matches used to push every section below them down the column. */
+.matchPop {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 240px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.matchPop ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.matchPop button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  min-height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.matchPop button:hover {
+  background: var(--hover);
+}
+
+/* ---------- Layer rail ---------- */
+
+.layerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+
+/*
+ * Exactly one row is selected at any time, so four short rows plus one tall one
+ * is a constant total however the selection moves: picking a layer never shifts
+ * the segment board below it.
+ */
+.tablist {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+
+.layerRow {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 32px;
+  padding: 0 8px 0 0;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.layerRow[aria-selected="true"] {
+  min-height: 46px;
+  background: var(--hover);
+}
+
+.layerRow:hover {
+  background: var(--hover);
+}
+
+/* The only 4px accent spine in the app. */
+.spine {
+  align-self: stretch;
+  background: transparent;
+  border-radius: 0 2px 2px 0;
+}
+
+.layerRow[aria-selected="true"] .spine {
+  background: var(--accent);
+}
+
+.layerText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  justify-content: center;
+}
+
+.layerLabel {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layerRow[aria-selected="true"] .layerLabel {
+  font-weight: 650;
+}
+
+.layerBlurb {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* A 24x14 read of that layer's real scale, drawn from the same palette the
+   polygons use. */
+.ramp {
+  display: flex;
+  gap: 1px;
+  width: 24px;
+  height: 14px;
+  flex: none;
+  justify-self: end;
+}
+
+.ramp span {
+  flex: 1;
+  min-width: 0;
+  background: var(--c);
+}
+
+.ramp span:first-child {
+  border-radius: 2px 0 0 2px;
+}
+
+.ramp span:last-child {
+  border-radius: 0 2px 2px 0;
+}
+
+/* ---------- Segment board ---------- */
+
+/* Sized by its seven rows rather than by the slack left over: a squeezed list
+   used to draw its rows on top of the caption below it. The layer block is the
+   only part of the rail that flexes. */
+.segBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+
+/*
+ * No gap between rows. Seven radios at 24px is 168px whichever way it is spent,
+ * and spending it on the rows themselves is the only arrangement where each one
+ * really owns 24px: with a 2px gap the rows had to paint at 20px and reach into
+ * the gap with a pseudo-element, and two neighbours reaching into the same 2px
+ * left each of them 22. The checked row's own background separates them.
+ */
+.segList {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 0;
+}
+
+.segRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px 26px;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: var(--seg-row);
+  padding: 0 4px;
+  margin: 0 -4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.segRow:hover {
+  background: var(--hover);
+}
+
+.segRow[aria-checked="true"] {
+  background: var(--hover);
+}
+
+.segRow[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.segName {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.segRow[aria-checked="true"] .segName {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.segCount {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+}
+
+.caption {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  flex: none;
+}
+
+/* A short laptop viewport is a normal desktop, so the rail tightens rather
+   than starting to scroll: smaller gaps, a one-line blurb, a 10px caption.
+   The segment rows are not on the list of things that tighten — a radio's 24px
+   is the one measurement in this rail that is not negotiable. */
+@media (max-height: 800px) {
+  .rail {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .layerBlock,
+  .segBlock {
+    gap: 4px;
+  }
+
+  .layerBlurb {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .layerRow {
+    min-height: 29px;
+  }
+
+  .layerRow[aria-selected="true"] {
+    min-height: 38px;
+  }
+
+  .caption {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .search input,
+  .search button {
+    height: 28px;
+    min-height: 28px;
+  }
+}
+
+/*
+ * 1366x768 is a mainstream desktop and leaves about 670px of viewport, which is
+ * where this rail used to start scrolling — and its footer got sliced through
+ * the middle of its glyphs at the bottom edge. The budget is cut here rather
+ * than paid for with a scrollbar: shorter layer rows, less padding, and the
+ * caption below. Nothing that is a control gives up height or target.
+ */
+@media (max-height: 760px) {
+  .rail {
+    gap: 4px;
+    padding: 7px;
+  }
+
+  .layerBlock,
+  .segBlock {
+    gap: 2px;
+  }
+
+  /* 24px exactly: the floor a tab may not go under. */
+  .layerRow {
+    min-height: 24px;
+  }
+
+  .layerRow[aria-selected="true"] {
+    min-height: 28px;
+  }
+
+  .search input,
+  .search button {
+    height: 24px;
+    min-height: 24px;
+  }
+
+  .foot {
+    padding-bottom: 0;
+  }
+
+  /*
+   * The one thing in this rail that is prose rather than a control, and the
+   * last 15px the segment radios need for their 24px. What it says — the
+   * critical-mass threshold a segment market is measured against — is the
+   * "Crit. mass" dial's live value in the deck below and its own row in the
+   * About popover, so it is the honest thing to drop here.
+   */
+  .caption {
+    display: none;
+  }
+}
+
+/* ---------- The quiet foot ---------- */
+
+/*
+ * Below about 660px of viewport the rail does start to scroll, and that is the
+ * designed safety valve rather than a failure: crushing a radio under 24px to
+ * avoid a scrollbar on a window shorter than any mainstream laptop is the worse
+ * trade. Sticky, so what goes under the fold there is the top of the layer
+ * block and never one of these two.
+ *
+ * bottom: 0, not a negative offset: a -10px offset let the foot park ten pixels
+ * below the scrollport, which cut both buttons horizontally through the middle
+ * of their glyphs — worse to look at than the scrollbar it was avoiding.
+ */
+.foot {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding-bottom: 2px;
+  background: var(--surface);
+}
+
+.calRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.calHandle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.calHandle:hover {
+  color: var(--text-secondary);
+}
+
+.calReset {
+  text-decoration: underline;
+}
+
+.aboutLink {
+  margin-left: auto;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+@media (max-width: 999px) {
+  .rail {
+    height: auto;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .layerBlock,
+  .segBlock {
+    flex: none;
+  }
+
+  .tablist {
+    flex: none;
+  }
+
+  .layerRow {
+    flex: none;
+    min-height: 40px;
+  }
+
+  .layerRow[aria-selected="true"] {
+    min-height: 54px;
+  }
+
+  .segList {
+    flex: none;
+  }
+
+  .segRow {
+    flex: none;
+    height: 24px;
+  }
+
+  /* Nothing scrolls in a stacked page, so the foot has nothing to stick to. */
+  .foot {
+    position: static;
+    margin-top: 4px;
+    background: transparent;
+  }
+
+  /* A five-row tablist stretched to 900px reads as five stray labels, so the
+     rail's lists keep a column's worth of width. */
+  .tablist,
+  .segList,
+  .caption,
+  .search {
+    max-width: 520px;
+  }
+}

@@ -1,0 +1,247 @@
+/*
+ * Four-edge frame: outcome bar across the top, a lens rail and a decision rail
+ * down the sides, a supply deck along the bottom, and the map in the middle.
+ * Every breakpoint is four custom properties and, once, one areas string, so no
+ * region ever remounts and Leaflet is never re-initialised.
+ */
+
+.app {
+  --bar-h: 84px;
+  --rail-l: 248px;
+  --rail-r: 300px;
+  /* 12px of this is the forecast chart's caption gutter and 6px is the small
+     controls' 24px targets. The deck is the region with slack at these
+     heights; the map's lead is only threatened on a short window, which the
+     max-height branches below still answer by cutting the deck first. */
+  --deck-h: 204px;
+  --dial-w: 148px;
+  --tab-row: 40px;
+  /* A segment row is a radio, so it owns a 24px target. Narrow is not short:
+     the width breakpoints below leave this alone and only the height ones cut
+     it, where the pointer target is held open by a pseudo-element instead. */
+  --seg-row: 24px;
+  --hero-size: 32px;
+  --fig-size: 26px;
+
+  display: grid;
+  grid-template-columns: var(--rail-l) minmax(0, 1fr) var(--rail-r);
+  grid-template-rows: var(--bar-h) minmax(0, 1fr) var(--deck-h);
+  grid-template-areas:
+    "bar  bar  bar"
+    "lens map  decide"
+    "deck deck deck";
+  height: 100dvh;
+  width: 100%;
+  background: var(--page);
+  /* Board mode is an absolute child, so it can never change a grid track. */
+  position: relative;
+}
+
+.bar {
+  grid-area: bar;
+  min-width: 0;
+  /* So the dropped-link notice can hang below the bar without a track change. */
+  position: relative;
+  z-index: 3;
+}
+
+.lens {
+  grid-area: lens;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * A stacking context of its own, so Leaflet's panes and the map overlays stay
+ * inside it instead of competing with the frame at the document root — the
+ * overlays at 900 would otherwise paint over anything the bar hangs below it.
+ */
+.mapPane {
+  grid-area: map;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  z-index: 0;
+}
+
+.decide {
+  grid-area: decide;
+  min-width: 0;
+  min-height: 0;
+}
+
+.deck {
+  grid-area: deck;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app {
+    transition: grid-template-columns 180ms ease, grid-template-rows 180ms ease;
+  }
+}
+
+/* Focus map: the rails and deck collapse to zero and the bar becomes a ribbon.
+   Zero-width regions are made inert as well, so focus cannot land inside one. */
+.app[data-focus="true"] {
+  --rail-l: 0px;
+  --rail-r: 0px;
+  --deck-h: 0px;
+  --bar-h: 32px;
+}
+
+.collapsed {
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Board mode: the capacity rows each card folds away, and the weekly table
+ * beside the chart. An overlay, not a track change, so no invalidateSize — but
+ * it claims the map's rectangle only. It used to be pinned to the frame's own
+ * bottom edge, which is where the deck lives, so opening the one affordance
+ * that promises "see everything" buried the nine model assumptions and every
+ * forecast control under it. Both rails and the whole deck now stay uncovered,
+ * which is what makes the header's claim true and "run one from the deck"
+ * followable without closing the board first.
+ *
+ * Height follows its content up to the map's own height, so the pre-forecast
+ * state is a compact strip rather than a large empty box.
+ */
+.board {
+  position: absolute;
+  left: var(--rail-l);
+  right: var(--rail-r);
+  bottom: var(--deck-h);
+  max-height: calc(100dvh - var(--bar-h) - var(--deck-h));
+  display: grid;
+  grid-template-rows: 28px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--deck);
+  border: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.14);
+  z-index: 950;
+}
+
+.boardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.boardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.boardNote {
+  font-size: 10px;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boardBody {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (min-width: 1600px) {
+  .app {
+    --bar-h: 92px;
+    --rail-l: 288px;
+    --rail-r: 340px;
+    --deck-h: 212px;
+    --tab-row: 44px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .app {
+    --bar-h: 80px;
+    --rail-l: 224px;
+    --rail-r: 272px;
+    --dial-w: 112px;
+    --tab-row: 36px;
+    --hero-size: 26px;
+    --fig-size: 20px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app {
+    --bar-h: 76px;
+    --rail-l: 208px;
+    --rail-r: 248px;
+    --dial-w: 96px;
+    --tab-row: 32px;
+    --hero-size: 22px;
+    --fig-size: 18px;
+  }
+}
+
+/*
+ * A short window is where the fixed chrome threatens the map's lead: at
+ * 1280x575 a 192px deck is a larger rectangle than the map itself. The deck is
+ * where to cut, exactly as the design's own cost note says — never the bar, and
+ * never a control.
+ */
+@media (max-height: 760px) {
+  .app {
+    --bar-h: 78px;
+    --deck-h: 188px;
+    --hero-size: 26px;
+    --fig-size: 21px;
+  }
+}
+
+/* The bar holds its 78px — the funnel's three rows do not compress further.
+   Only the deck keeps giving. */
+@media (max-height: 660px) {
+  .app {
+    --deck-h: 178px;
+  }
+}
+
+/* Below 1000px the frame linearizes and the page scrolls: requirement 1 is a
+   desktop promise. Each former rail becomes a full-width section, all open. */
+@media (max-width: 999px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas:
+      "bar"
+      "map"
+      "lens"
+      "decide"
+      "deck";
+    height: auto;
+    --rail-l: 100%;
+    --rail-r: 100%;
+    --deck-h: auto;
+    --bar-h: auto;
+  }
+
+  /* The map row sizes to its contents here, because the overlay cards become
+     static blocks after the map rather than floating over it. The map itself
+     keeps a fixed share of the screen. */
+  .mapPane {
+    height: auto;
+    min-height: 0;
+  }
+
+  .board {
+    display: none;
+  }
+}

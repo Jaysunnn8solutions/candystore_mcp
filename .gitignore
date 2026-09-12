@@ -42,6 +42,9 @@ yarn-error.log*
 # maps written by the local render_map tool
 candy-map-*.html
 
+# local-only notes and analysis, never committed
+/local_docs/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

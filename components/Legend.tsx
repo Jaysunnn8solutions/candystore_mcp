@@ -1,33 +1,133 @@
 "use client";
 
-import { BLUE, COMPETITOR_COLOR, DC_COLOR, GREEN, NEUTRAL, ORANGE, STORE_TYPE_COLORS, money, storeColor, type Mode } from "./scales";
+import type { CSSProperties } from "react";
+import { BLUE, COMPETITOR_COLOR, DC_COLOR, GREEN, MODES, NEUTRAL, ORANGE, STORE_TYPE_COLORS, money, type Mode } from "./scales";
 import type { Store } from "@/lib/model/types";
 import styles from "./Legend.module.css";
 
-export function Legend({ mode, breaks, stores }: { mode: Mode; breaks: number[]; stores: Store[] }) {
-  const rows: Array<{ color: string; label: string; round?: boolean }> = [];
-  if (mode === "share") {
-    ["none", "under 10%", "10 to 25%", "25 to 50%", "over 50%"].forEach((l, i) => rows.push({ color: GREEN[i], label: l }));
-  } else if (mode === "primary") {
-    stores.forEach((s, i) => rows.push({ color: storeColor(i), label: s.name }));
-    rows.push({ color: NEUTRAL, label: "no store of ours in reach" });
-  } else {
-    const cols = mode === "specialty" ? ORANGE : BLUE;
-    cols.forEach((c, i) => rows.push({ color: c, label: i < 4 ? `under ${money(breaks[i] ?? 0)}` : `${money(breaks[3] ?? 0)} and up` }));
-    if (mode === "specialty") rows.push({ color: NEUTRAL, label: "segment below critical mass" });
-  }
-  rows.push({ color: STORE_TYPE_COLORS.general, label: "general store", round: true });
-  rows.push({ color: STORE_TYPE_COLORS.specialty, label: "specialty store", round: true });
-  rows.push({ color: DC_COLOR, label: "distribution center", round: true });
-  rows.push({ color: COMPETITOR_COLOR, label: "competitor", round: true });
-  return (
-    <div className={styles.legend} aria-label="Map legend">
-      {rows.map((r, i) => (
-        <div key={`${i}-${r.label}`} className={styles.row}>
-          <span className={styles.swatch} style={{ background: r.color, borderRadius: r.round ? "50%" : undefined }} />
-          <span>{r.label}</span>
+interface Props {
+  mode: Mode;
+  breaks: number[];
+  stores: Store[];
+  /** Store id → colour, assigned over the whole roster so a closure cannot reshuffle it. */
+  storeSlots: Map<string, string>;
+  showCompetitors: boolean;
+  onShowCompetitors: (v: boolean) => void;
+  /** Collapsed: the ramp alone, so a folded legend is still a legend. */
+  compact?: boolean;
+}
+
+const SHARE_LABELS = ["none", "under 10%", "10 to 25%", "25 to 50%", "over 50%"];
+
+export function Legend({ mode, breaks, stores, storeSlots, showCompetitors, onShowCompetitors, compact }: Props) {
+  const sequential = mode === "demand" || mode === "specialty" || mode === "uncaptured";
+  const colors = mode === "specialty" ? ORANGE : BLUE;
+  const slot = (s: Store) => storeSlots.get(s.id) ?? NEUTRAL;
+  const ramp = mode === "share" ? GREEN : mode === "primary" ? stores.slice(0, 5).map(slot) : colors;
+
+  if (compact) {
+    // Named from MODES, and only the sequential layers are a scale: Trade areas
+    // is one colour per store and Our share is banded, so calling either a
+    // light-to-dark ramp would describe a form the map does not have.
+    const label = MODES.find((m) => m.id === mode)?.label ?? mode;
+    const shape =
+      mode === "primary" ? "one colour per store" : mode === "share" ? "five share bands, light to dark" : "scale, light to dark";
+    return (
+      <div className={styles.legend}>
+        <div className={styles.ramp} role="img" aria-label={`${label}: ${shape}. Expand the legend for the values.`}>
+          {ramp.map((c, i) => <span key={i} style={{ ["--c" as string]: c } as CSSProperties} />)}
         </div>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.legend}>
+      {sequential && (
+        <>
+          <div className={styles.ramp} aria-hidden>
+            {colors.map((c, i) => <span key={i} style={{ ["--c" as string]: c } as CSSProperties} />)}
+          </div>
+          <div
+            className={styles.breaks}
+            role="img"
+            aria-label={`${mode === "specialty" ? "Specialty demand" : mode === "uncaptured" ? "Uncaptured demand" : "Demand"} per tract, in five steps light to dark: under ${money(breaks[0] ?? 0)}, then ${breaks.map((b) => money(b ?? 0)).join(", ")}, then ${money(breaks[3] ?? 0)} and up.`}
+          >
+            {breaks.map((b, i) => (
+              <span key={i} style={{ left: `${((i + 1) / 5) * 100}%` }}>{money(b ?? 0)}</span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {mode === "share" && (
+        <>
+          <div className={styles.ramp} aria-hidden>
+            {GREEN.map((c, i) => <span key={i} style={{ ["--c" as string]: c } as CSSProperties} />)}
+          </div>
+          <div className={styles.rows}>
+            {GREEN.map((c, i) => (
+              <div key={i} className={styles.row}>
+                <span className={styles.swatch} style={{ ["--c" as string]: c } as CSSProperties} />
+                <span className={styles.label}>{SHARE_LABELS[i]}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {mode === "specialty" && (
+        <div className={styles.row}>
+          <span className={styles.swatch} style={{ ["--c" as string]: NEUTRAL } as CSSProperties} />
+          <span className={styles.label}>segment below critical mass</span>
+        </div>
+      )}
+
+      {mode === "primary" && (
+        // A trade-area legend has one row per store, which is a result and may
+        // run to dozens: it scrolls, the marker key below it never does.
+        <div className={styles.rows}>
+          {stores.map((s) => (
+            <div key={s.id} className={styles.row}>
+              <span className={styles.swatch} style={{ ["--c" as string]: slot(s) } as CSSProperties} />
+              <span className={styles.label} title={s.name}>{s.name}</span>
+            </div>
+          ))}
+          <div className={styles.row}>
+            <span className={styles.swatch} style={{ ["--c" as string]: NEUTRAL } as CSSProperties} />
+            <span className={styles.label}>no store of ours in reach</span>
+          </div>
+        </div>
+      )}
+
+      <div className={styles.markers}>
+        <div className={styles.row}>
+          <span className={`${styles.swatch} ${styles.round}`} style={{ ["--c" as string]: STORE_TYPE_COLORS.general } as CSSProperties} />
+          <span className={styles.label}>general</span>
+        </div>
+        <div className={styles.row}>
+          <span className={`${styles.swatch} ${styles.round}`} style={{ ["--c" as string]: STORE_TYPE_COLORS.specialty } as CSSProperties} />
+          <span className={styles.label}>specialty</span>
+        </div>
+        <div className={styles.row}>
+          <span className={`${styles.swatch} ${styles.round}`} style={{ ["--c" as string]: DC_COLOR } as CSSProperties} />
+          <span className={styles.label}>distribution center</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showCompetitors}
+          className={styles.compRow}
+          onClick={() => onShowCompetitors(!showCompetitors)}
+        >
+          <span
+            className={`${styles.swatch} ${styles.round}`}
+            style={{ ["--c" as string]: showCompetitors ? COMPETITOR_COLOR : "transparent", boxShadow: showCompetitors ? undefined : `inset 0 0 0 2px ${COMPETITOR_COLOR}` } as CSSProperties}
+          />
+          <span className={styles.label}>competitors</span>
+          {showCompetitors && <span className={styles.check} aria-hidden>✓</span>}
+        </button>
+      </div>
     </div>
   );
 }

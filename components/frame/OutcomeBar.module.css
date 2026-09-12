@@ -1,0 +1,384 @@
+/*
+ * The only elevated surface in the app, and the only place the 32px figure
+ * appears. Everything else is chrome on the page ground.
+ */
+
+.bar {
+  display: grid;
+  grid-template-columns: var(--rail-l) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 0 14px;
+  background: var(--elev);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.identity h1 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.dek {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.aboutBtn {
+  align-self: flex-start;
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* 17px of ink in a bar with no spare rows, 25px of pointer target. */
+.aboutBtn::before {
+  content: "";
+  position: absolute;
+  inset: -4px -2px;
+}
+
+.aboutBtn:hover {
+  color: var(--text-secondary);
+}
+
+/* ---------- Demand funnel ---------- */
+
+/* Two columns so the figures and the bar are exactly the same width: a bar
+   narrower than the figures row would put the "ours" segment under the market
+   demand figure and invite the wrong read. */
+.funnel {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 3px;
+}
+
+/* The hero column is wider than the other three: it is the one figure that
+   also carries a share and a delta, and it is the one the eye should land on. */
+.figures {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.fig {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 1px 4px;
+  border-radius: 8px;
+  margin: 0 -4px;
+}
+
+.figLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  line-height: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.figValue {
+  font-size: var(--fig-size);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.figValueHero {
+  font-size: var(--hero-size);
+}
+
+.figSub {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The two lengths of a tile's label. Exactly one is in the DOM's box tree at
+   any width, so the accessible name is never both. */
+.whenTight {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .atWidth {
+    display: none;
+  }
+
+  .whenTight {
+    display: inline;
+  }
+}
+
+button.fig {
+  cursor: pointer;
+}
+
+button.fig:hover {
+  background: var(--hover);
+}
+
+.delta {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.barRow {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.keyCol {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-self: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  flex-wrap: nowrap;
+}
+
+/* The gaps are this surface showing through, never a stroke — and now that
+   --reach clears the ground on its own, neither is the outline: the inset
+   hairline this track used to carry was drawn over the outer edge of the marks
+   themselves to make a 1.2:1 segment visible. Fixing the colour retires it. */
+.track {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 14px;
+  background: var(--elev);
+  border-radius: 0 4px 4px 0;
+}
+
+/* So a small-but-real quantity cannot vanish. Zero-valued segments are not
+   rendered at all, or this floor would draw them too. */
+.track span {
+  min-width: 2px;
+}
+
+.track span:last-child {
+  border-radius: 0 3px 3px 0;
+}
+
+.segOurs {
+  background: var(--fill);
+}
+
+.segCaps {
+  background: var(--over);
+}
+
+.segReach {
+  background: var(--reach);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bar[data-busy="true"] .track span {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---------- Actions ---------- */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex: none;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scenarioChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 4px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.baselineWord {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dropped {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 14px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--elev);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.dropped p {
+  min-width: 0;
+}
+
+.sharePop {
+  position: absolute;
+  z-index: 1000;
+  right: 14px;
+  top: calc(100% + 6px);
+  width: 360px;
+  max-width: calc(100vw - 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aboutPop {
+  position: absolute;
+  z-index: 1000;
+  left: 14px;
+  top: calc(100% + 6px);
+  width: 320px;
+  max-width: calc(100vw - 28px);
+  max-height: 70dvh;
+  overflow-y: auto;
+}
+
+/* ---------- Focus-mode ribbon ---------- */
+
+.ribbon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 14px;
+  background: var(--elev);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+
+.ribbon strong {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.ribbonSpacer {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 999px) {
+  .bar {
+    grid-template-columns: 1fr;
+    height: auto;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .figValue,
+  .figValueHero {
+    font-size: 22px;
+  }
+
+  .actions {
+    align-items: flex-start;
+  }
+
+  .dropped {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+  }
+}

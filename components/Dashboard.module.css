@@ -1,9 +1,5 @@
-.app {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  height: 100dvh;
-  width: 100%;
-}
+/* The frame's grid lives in components/frame/AppFrame.module.css. What is left
+   here is the map pane's own furniture. */
 
 .mapPane {
   position: relative;
@@ -16,12 +12,13 @@
   align-items: center;
   justify-content: center;
   height: 100%;
+  min-height: 240px;
   color: var(--muted);
 }
 
 .error {
   position: absolute;
-  z-index: 1000;
+  z-index: 1100;
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
@@ -31,7 +28,9 @@
   max-width: min(90%, 520px);
   padding: 8px 12px;
   border-radius: 8px;
-  background: #d03b3b;
+  /* --over, not a third red invented for this banner: #d03b3b was neither
+     --over nor any store slot, so the app had three of them. */
+  background: var(--over);
   color: #fff;
   font-size: 13px;
 }
@@ -43,16 +42,4 @@
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
-}
-
-@media (max-width: 800px) {
-  .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 55dvh 45dvh;
-    height: auto;
-  }
-
-  .mapPane {
-    order: -1;
-  }
 }

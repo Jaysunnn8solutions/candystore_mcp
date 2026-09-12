@@ -4,13 +4,44 @@
   --page: #f9f9f7;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
-  --muted: #898781;
+  /* The third ink tier still has to clear AA: it carries the dial labels and
+     values, the legend breaks, the forecast axis and the segment counts, all of
+     which are 9–11px text and none of which is decorative. 4.76:1 on --deck,
+     against --text-secondary's 7.20:1, so the three tiers stay distinct. */
+  --muted: #6e6c67;
   --grid: #e1e0d9;
   --border: rgba(11, 11, 11, 0.12);
   --hover: rgba(11, 11, 11, 0.05);
   --accent: #2a78d6;
+  /* The one filled button's ground. --accent carries white text at only 4.42:1
+     and 13px/650 is not WCAG large text, so the button darkens rather than the
+     label lightening: BLUE[3] measures 6.6:1 with #fff in both themes. */
+  --accent-strong: #1c5cab;
+  /* Warning state. Not DC yellow (that is a centre's identity) and not --over
+     (that is a breach, not a watch): ORANGE[3], which clears #fff at 5.2:1. */
+  --warn: #b84a1f;
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* The outcome bar is the one elevated surface; the supply deck is recessed. */
+  --elev: #ffffff;
+  --deck: #f4f4f1;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.07);
+
+  /* Steps of BLUE and ORANGE from components/scales.ts, as CSS so the meters,
+     funnel and sparkbars can be themed. No hue here is new. */
+  --fill: #1c5cab;
+  --fill-soft: #86b6ef;
+  --fill-track: #cde2fb;
+  /* The funnel's residual class. --fill-track is the right colour for an
+     unfilled meter track — invisible is the point there — but "not in reach" is
+     93% of the headline bar and measured 1.20:1 against the bar's own white
+     ground. One step darker on the same ramp: 2.11:1 on --elev, and still
+     clearly recessive against --fill's 6.6:1. */
+  --reach: #86b6ef;
+  --over: #b83232;
+  --seg-fill: #b84a1f;
+  --seg-track: #fbe3d6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,11 +51,44 @@
     --page: #0d0d0d;
     --text-primary: #ffffff;
     --text-secondary: #c3c2b7;
-    --muted: #898781;
+    /* Lifted for the same reason the light value was darkened: 5.7:1 on --elev
+       against --text-secondary's 8.9:1. */
+    --muted: #9d9b94;
     --grid: #2c2c2a;
     --border: rgba(255, 255, 255, 0.14);
     --hover: rgba(255, 255, 255, 0.06);
     --accent: #3987e5;
+    /* The same step in both themes: white text is the constant, and only a
+       dark blue carries it at 4.5:1. */
+    --accent-strong: #1c5cab;
+    --warn: #b84a1f;
+
+    --elev: #222221;
+    --deck: #141413;
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    /* Stepped up the same ramp rather than flipped, because the ground is now
+       the dark end: BLUE[2] / BLUE[1] / BLUE[4]. The track is the darkest step
+       rather than the second-darkest because the boundary between a meter's
+       fill and its track IS the data — where the filled portion ends — and
+       #1c5cab cleared #3987e5 by only 1.82:1 there. #0d366b lifts that to
+       3.29:1 and still clears the deck by 1.5:1 with the track's hairline
+       holding its outline. #b83232 measures 3.16:1 on the deck and never
+       carries text, so it stays. */
+    --fill: #3987e5;
+    --fill-soft: #86b6ef;
+    --fill-track: #0d366b;
+    /* The funnel's residual class goes the opposite way on a dark ground: the
+       pale step is the correct read for "everything we do not touch", and it
+       separates from --fill by far more than another dark blue would. */
+    --reach: #cde2fb;
+    --over: #b83232;
+    --seg-fill: #eb6834;
+    /* Not a published ORANGE step — the ramp has nothing below #7a2f11 that
+       stays apart from this ground, so this is a derived darker one. A sparkbar
+       track has to be a darker step of its own fill's ramp, and inventing one
+       is the honest way to get it. */
+    --seg-track: #4a2412;
   }
 }
 
@@ -53,7 +117,15 @@ a {
   text-decoration: none;
 }
 
-@media (max-width: 800px) {
+:where(button, input, select, textarea, summary, a[href], [role="tab"], [role="radio"], [role="switch"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+/* Matches the width at which the frame linearizes. Anything narrower is a
+   stacked page that has to be able to scroll. */
+@media (max-width: 999px) {
   html,
   body {
     overflow: auto;

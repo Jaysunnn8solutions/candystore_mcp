@@ -1,0 +1,811 @@
+/*
+ * The purpose-built controls the frame is assembled from: stepper number boxes,
+ * calibration dials, capacity meters, segmented choices and toggle chips. One
+ * stylesheet because several regions mount the same widget and a second copy
+ * would let two of them drift apart.
+ */
+
+.h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.h2 span {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* A section heading is one line of 12px type; on a short window it does not
+   also need the 4px of leading a default line box gives it. Three regions gain
+   3px each, which is most of what the lens rail needed to stop scrolling at
+   1366x768. */
+@media (max-height: 760px) {
+  .h2 {
+    line-height: 1.1;
+  }
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+/* ---------- Stepper: the one number-box primitive ---------- */
+
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 26px of box for 24px of button inside the border. The small tier used to be
+   20px with a pseudo-element reaching for the rest of the target, which the
+   stepper's own overflow:hidden clipped away, so the −/+ buttons really were
+   22x18. The deck pays for it by laying its three forecast fields out two to a
+   row, which it already did on a short window. */
+.stepper[data-size="sm"] {
+  height: 26px;
+}
+
+.stepper[data-disabled="true"] {
+  opacity: 0.5;
+}
+
+.stepBtn {
+  width: 24px;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  position: relative;
+}
+
+.stepper[data-size="sm"] .stepBtn {
+  width: 24px;
+}
+
+.stepBtn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.stepBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.stepBtn + .affix,
+.affix + .stepInput,
+.stepInput + .affix,
+.affix + .stepBtn,
+.stepInput + .stepBtn {
+  box-shadow: none;
+}
+
+.stepBtn:first-child {
+  box-shadow: inset -1px 0 0 var(--border);
+}
+
+.stepBtn:last-child {
+  box-shadow: inset 1px 0 0 var(--border);
+}
+
+/* The side padding is overridable for the same reason the number box's width
+   is: a caller short of width gives up the affix's breathing room before it
+   lets the grid clip the label naming what the number applies to. */
+.affix {
+  display: flex;
+  align-items: center;
+  padding: 0 1px 0 var(--affix-pad, 4px);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.affix:last-of-type {
+  padding: 0 var(--affix-pad, 4px) 0 1px;
+}
+
+.stepInput {
+  width: 56px;
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* Overridable, so a caller whose row is short of width can give the number box
+   up rather than let the grid clip the label beside it. */
+.stepper[data-size="sm"] .stepInput {
+  width: var(--step-input-w, 34px);
+  font-size: 11px;
+}
+
+.stepInput::-webkit-outer-spin-button,
+.stepInput::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.stepInput:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* A capacity stepper at exactly ×1.0 is "no override", and that has to read at
+   a glance rather than needing the number to be compared to 1. */
+.stepper[data-neutral="true"] .stepInput {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.stepBig .stepInput {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.stepBig {
+  height: 32px;
+}
+
+.stepBig .stepBtn {
+  width: 26px;
+}
+
+/* ---------- Segmented: exclusive choice ---------- */
+
+.segmented {
+  display: flex;
+  flex-wrap: nowrap;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented[data-size="lg"] {
+  min-height: 30px;
+}
+
+/* 26px of box so the buttons inside the 1px border still measure 24px: the
+   border is not part of any option's target. */
+.segmented[data-size="sm"] {
+  min-height: 26px;
+}
+
+.segmented button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.segmented[data-size="sm"] button {
+  font-size: 11px;
+}
+
+.segmented button:hover {
+  background: var(--hover);
+}
+
+/* The container clips its own overflow to round the end buttons, which ate the
+   global ring whole — it paints from 3px outside the button box and the buttons
+   fill the container edge to edge. Inset, as .stepInput already does. */
+.segmented button:focus-visible {
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+.segmented button + button {
+  box-shadow: inset 1px 0 0 var(--border);
+}
+
+.segmented button.active {
+  background: var(--text-primary);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.segBadge {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* ---------- Toggle chips and switches ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--page);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  background: var(--hover);
+}
+
+.chip[aria-checked="true"],
+.chip[aria-pressed="true"] {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-color: var(--text-secondary);
+}
+
+.chipBig {
+  min-height: 30px;
+  font-size: 12px;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+}
+
+.chipBig[aria-pressed="true"] {
+  background: var(--text-primary);
+  color: var(--surface);
+  border-color: var(--text-primary);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dot, var(--muted));
+  flex: none;
+}
+
+/* Off is a ring, on is a fill: state never rides on colour alone. */
+.dotRing {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--dot, var(--muted));
+}
+
+.dotDashed {
+  background: transparent;
+  border: 2px dashed var(--dot, var(--muted));
+  width: 12px;
+  height: 12px;
+}
+
+.check {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.powerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.powerBtn:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.powerBtn[aria-pressed="true"] {
+  color: var(--text-secondary);
+}
+
+/* ---------- Meter: one ratio against a limit ---------- */
+
+.meterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 92px) minmax(20px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 14px;
+}
+
+.meterName {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meterTrack {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill-track);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.meterFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--fill);
+}
+
+/* A 2px gap of the deck's own surface, so fill and track never touch. */
+.meterFill[data-gap="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 2px;
+  background: var(--deck);
+}
+
+.meterRow[data-level="over"] .meterFill {
+  background: var(--over);
+  border-radius: 4px;
+}
+
+/* The 80% mark, so "tight" is legible without reading the number. */
+.meterThreshold {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: 80%;
+  width: 1px;
+  background: var(--muted);
+}
+
+/* Past capacity the fill is clamped, so the overshoot gets its own mark
+   outside the track. */
+.meterOver {
+  position: absolute;
+  top: -2px;
+  height: 12px;
+  left: calc(100% + 2px);
+  width: 2px;
+  background: var(--over);
+}
+
+.meterFig {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+  margin-left: 4px;
+}
+
+/* Both through tokens. The priority pill duplicated --over's hex by hand, so
+   the two could drift; the watch pill was byte-identical to DC_COLOR, which
+   paints a centre's identity dot four rows above it on the same card. A status
+   colour is reserved, so the watch pill now wears --warn. */
+.flagPriority {
+  background: var(--over);
+  color: #fff;
+}
+
+.flagWatch {
+  background: var(--warn);
+  color: #fff;
+}
+
+.flagNone {
+  background: var(--grid);
+  color: var(--text-secondary);
+}
+
+/* ---------- Dial: one calibration parameter ---------- */
+
+/* Sized by its own two rows and centred in whatever height the strip has, so
+   the same dial fits a 40px strip and the 34px one a short window leaves. */
+.dial {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  align-self: center;
+  cursor: pointer;
+}
+
+.dialTop {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  height: 14px;
+  position: relative;
+}
+
+.dialLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dialValue {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  flex: none;
+}
+
+.dial[data-changed="true"] .dialValue {
+  color: var(--text-primary);
+}
+
+/* 24px, not the 18px it painted at: a range input's box IS its pointer target
+   and a 14px thumb in an 18px row is a hard grab. The 4px track still reads as
+   a hairline because the extra height is transparent. */
+.dialTrack {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+/* The shipped default, so "how far from stock am I" is answerable per dial. */
+.dialTick {
+  position: absolute;
+  left: var(--tick);
+  top: 6px;
+  width: 1px;
+  height: 12px;
+  background: var(--muted);
+  pointer-events: none;
+}
+
+.dialRange {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.dialRange::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--pct), var(--fill-track) var(--pct));
+}
+
+.dialRange::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.dialRange::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-track);
+}
+
+.dialRange::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.dialRange::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* A short window shortens the dial strip. It comes off the label row, never off
+   the slider: the slider's box is its pointer target. */
+@media (max-height: 760px) {
+  .dialTop {
+    height: 12px;
+  }
+
+  .dialTick {
+    top: 6px;
+  }
+}
+
+/* ---------- Sparkbar: one magnitude, one hue ---------- */
+
+.spark {
+  display: block;
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--seg-track);
+  min-width: 0;
+}
+
+.sparkFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--seg-fill);
+}
+
+/* ---------- Two-tone and stacked bars ---------- */
+
+/* Max-scaled by explicit width rather than flex-grow, so the unfilled tail of
+   the row stays empty instead of being stretched into a third segment. */
+.twoTone,
+.pickBar {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
+.twoTone {
+  height: 3px;
+}
+
+.pickBar {
+  height: 4px;
+}
+
+.twoTone span,
+.pickBar span {
+  flex: none;
+  min-width: 0;
+  border-radius: 0 2px 2px 0;
+}
+
+.twoTone span:nth-child(1),
+.pickBar span:nth-child(1) {
+  background: var(--fill);
+}
+
+.twoTone span:nth-child(2) {
+  background: var(--fill-track);
+}
+
+.pickBar span:nth-child(2) {
+  background: var(--fill-soft);
+}
+
+/* ---------- Legend keys ---------- */
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  list-style: none;
+  min-width: 0;
+}
+
+.keys li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.keySwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--k);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.keyRule {
+  width: 10px;
+  height: 0;
+  border-top: 1px solid var(--muted);
+  flex: none;
+}
+
+/* ---------- Popovers ---------- */
+
+.popover {
+  position: absolute;
+  z-index: 1000;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.popHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.popBody p + p,
+.popBody h3 {
+  margin-top: 8px;
+}
+
+.popBody h3 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.popBody a {
+  text-decoration: underline;
+}
+
+.popBody code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.popBody dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.popBody dt {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.copyBox {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  resize: vertical;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

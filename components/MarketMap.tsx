@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import type { Layer, PathOptions } from "leaflet";
+import { latLng, type Layer, type PathOptions } from "leaflet";
 import type { Feature } from "geojson";
 import "leaflet/dist/leaflet.css";
 import type { TractCollection } from "@/lib/data/load";
@@ -15,6 +15,7 @@ import {
   NEUTRAL,
   NO_DATA,
   ORANGE,
+  SEARCH_COLOR,
   STORE_TYPE_COLORS,
   fmtNum,
   money,
@@ -22,10 +23,10 @@ import {
   quintiles,
   ramp,
   shareColor,
-  storeColors,
   utilization,
   type Mode,
 } from "./scales";
+import { useMapResize } from "./frame/useMapResize";
 import styles from "./GapMap.module.css";
 
 export interface MapPoint {
@@ -42,6 +43,8 @@ interface Props {
   segment: string;
   segmentLabels: Record<string, string>;
   stores: Store[];
+  /** Store id → trade-area colour, keyed to identity rather than list position. */
+  storeSlots: Map<string, string>;
   dcs: DistributionCenter[];
   competitors: Competitor[];
   showCompetitors: boolean;
@@ -93,13 +96,31 @@ function MapEvents({ placing, onPlace }: { placing: StoreType | null; onPlace: (
 function FlyTo({ target }: { target: MapPoint | null }) {
   const map = useMap();
   useEffect(() => {
-    if (target) map.flyTo([target.lat, target.lon], Math.max(map.getZoom(), 12), { duration: 0.8 });
+    if (!target) return;
+    // Padded away from the top-right corner, where the tract inspector sits:
+    // a searched place or a plan's first pick must not land under the card.
+    map.stop();
+    map.flyToBounds(latLng(target.lat, target.lon).toBounds(600), {
+      paddingTopLeft: [0, 0],
+      paddingBottomRight: [304, 0],
+      maxZoom: Math.max(map.getZoom(), 12),
+      duration: 0.8,
+    });
   }, [map, target]);
   return null;
 }
 
+/**
+ * Leaflet listens only for `window resize`, and the frame changes the map
+ * container without one when focus mode collapses the rails.
+ */
+function ResizeWatcher() {
+  useMapResize(useMap());
+  return null;
+}
+
 export default function MarketMap(props: Props) {
-  const { tracts, result, version, mode, segment, segmentLabels, stores, dcs, competitors, showCompetitors, placing, searchMarker, flyTo, selected, onSelect, onPlace, onRemoveStore } = props;
+  const { tracts, result, version, mode, segment, segmentLabels, stores, storeSlots, dcs, competitors, showCompetitors, placing, searchMarker, flyTo, selected, onSelect, onPlace, onRemoveStore } = props;
   const dark = useDarkMode();
 
   // react-leaflet runs onEachFeature once per GeoJSON mount, so the click
@@ -111,7 +132,6 @@ export default function MarketMap(props: Props) {
   }, [placing]);
 
   const byGeoid = useMemo(() => new Map(result?.tracts.map((t) => [t.geoid, t]) ?? []), [result]);
-  const storeSlot = useMemo(() => storeColors(stores), [stores]);
   const breaks = useMemo(() => {
     const all = result?.tracts ?? [];
     const cat = `specialty:${segment}`;
@@ -137,12 +157,12 @@ export default function MarketMap(props: Props) {
             fill = v > 0 ? ramp(v, breaks.specialty, ORANGE) : NEUTRAL;
           } else if (mode === "share") fill = shareColor(ourShare(t));
           else if (mode === "uncaptured") fill = ramp(uncaptured(t), breaks.uncaptured, BLUE);
-          else fill = t.primaryStore ? (storeSlot.get(t.primaryStore) ?? NEUTRAL) : NEUTRAL;
+          else fill = t.primaryStore ? (storeSlots.get(t.primaryStore) ?? NEUTRAL) : NEUTRAL;
         }
         const isSelected = selected === p.geoid;
         return { fillColor: fill, fillOpacity: mode === "primary" ? 0.55 : 0.78, color: isSelected ? "#0b0b0b" : dark ? "#2c2c2a" : "#ffffff", weight: isSelected ? 3 : 0.5, opacity: 1 };
       },
-    [byGeoid, mode, segment, breaks, selected, dark, storeSlot]
+    [byGeoid, mode, segment, breaks, selected, dark, storeSlots]
   );
 
   const onEachFeature = (feature: Feature, layer: Layer) => {
@@ -176,6 +196,7 @@ export default function MarketMap(props: Props) {
     <MapContainer center={CENTER} zoom={9} minZoom={8} maxZoom={16} className={styles.map}>
       <MapEvents placing={placing} onPlace={onPlace} />
       <FlyTo target={flyTo} />
+      <ResizeWatcher />
       <TileLayer key={dark ? "dark" : "light"} url={dark ? TILES.dark : TILES.light} attribution={ATTRIBUTION} />
       <GeoJSON key={layerKey} data={tracts} style={style} onEachFeature={onEachFeature} />
       <TileLayer key={dark ? "ld" : "ll"} url={dark ? TILES.labelsDark : TILES.labelsLight} pane="markerPane" opacity={0.9} />
@@ -203,7 +224,7 @@ export default function MarketMap(props: Props) {
             key={s.id}
             center={[s.lat, s.lon]}
             radius={s.proposed ? 9 : 8}
-            pathOptions={{ color: mode === "primary" ? (storeSlot.get(s.id) ?? ink) : ink, weight: mode === "primary" ? 4 : 2, fillColor: STORE_TYPE_COLORS[s.type], fillOpacity: 1, dashArray: s.proposed ? "3 3" : undefined }}
+            pathOptions={{ color: mode === "primary" ? (storeSlots.get(s.id) ?? ink) : ink, weight: mode === "primary" ? 4 : 2, fillColor: STORE_TYPE_COLORS[s.type], fillOpacity: 1, dashArray: s.proposed ? "3 3" : undefined }}
             eventHandlers={s.proposed ? { click: () => onRemoveStore(s.id) } : {}}
           >
             <Tooltip direction="top" offset={[0, -9]}>
@@ -215,8 +236,18 @@ export default function MarketMap(props: Props) {
           </CircleMarker>
         );
       })}
+      {/* Direct labels for the trade areas, on an anchor of their own so the
+          store marker keeps its hover tooltip. Only in this layer: elsewhere
+          the fill means demand, not identity, and six permanent labels would
+          be noise. */}
+      {mode === "primary" &&
+        stores.map((s) => (
+          <CircleMarker key={`label-${s.id}`} center={[s.lat, s.lon]} radius={1} interactive={false} pathOptions={{ opacity: 0, fillOpacity: 0 }}>
+            <Tooltip direction="bottom" offset={[0, 8]} permanent className={styles.areaLabel}>{s.name}</Tooltip>
+          </CircleMarker>
+        ))}
       {searchMarker && (
-        <CircleMarker center={[searchMarker.lat, searchMarker.lon]} radius={9} pathOptions={{ color: ink, weight: 2, fillColor: "#eda100", fillOpacity: 1 }}>
+        <CircleMarker center={[searchMarker.lat, searchMarker.lon]} radius={9} pathOptions={{ color: ink, weight: 2, fillColor: SEARCH_COLOR, fillOpacity: 1 }}>
           <Tooltip direction="top" offset={[0, -9]} permanent>{searchMarker.label}</Tooltip>
         </CircleMarker>
       )}
