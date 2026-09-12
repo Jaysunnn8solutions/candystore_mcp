@@ -38,8 +38,19 @@ interface StaticData {
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
   if (!r.ok) {
-    const body = (await r.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `HTTP ${r.status}`);
+    /*
+     * The routes send `issues` beside `error` (lib/api.ts), and the model's own
+     * messages are specific: 'Unknown category "specialty". Known: traditional,
+     * specialty:latam, …, *, specialty:*'. Only `error` was read, so a link
+     * carrying one bad id produced the banner "Invalid parameters" and nothing
+     * else — the server knew exactly which field was wrong and the screen would
+     * not say. The path names the field, because an id is meaningless without it.
+     */
+    const body = (await r.json().catch(() => ({}))) as { error?: string; issues?: Array<{ message?: string; path?: Array<string | number> }> };
+    const first = body.issues?.[0];
+    const where = first?.path?.length ? `${first.path.join(".")}: ` : "";
+    const detail = first?.message ? `${where}${first.message}` : "";
+    throw new Error([body.error ?? `HTTP ${r.status}`, detail].filter(Boolean).join(" — "));
   }
   return r.json() as Promise<T>;
 }
